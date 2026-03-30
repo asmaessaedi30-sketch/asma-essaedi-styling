@@ -185,6 +185,17 @@ def init_db():
     print("[DB] Database initialised.")
 
 
+def ensure_app_ready():
+    """Initialize database tables once per process so fresh deploys don't crash."""
+    if app.config.get("_db_ready"):
+        return
+    init_db()
+    app.config["_db_ready"] = True
+
+
+ensure_app_ready()
+
+
 # ---------------------------------------------------------------------------
 # Auth Helpers
 # ---------------------------------------------------------------------------
