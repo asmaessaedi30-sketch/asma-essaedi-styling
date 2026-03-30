@@ -13,6 +13,7 @@ Version: 1.0.0 (MVP)
 import os
 import random
 import sqlite3
+import json
 from functools import wraps
 from datetime import datetime
 
@@ -91,6 +92,22 @@ app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_LENGTH
 
 # Clothing categories used across the app
 CATEGORIES = ["tops", "bottoms", "shoes", "outerwear", "accessories"]
+PREVIEW_OCCASIONS = [
+    "Everyday polish",
+    "Work meeting",
+    "Date night",
+    "Brunch",
+    "Wedding guest",
+    "Travel day",
+]
+STYLE_VIBES = [
+    "Minimal",
+    "Elevated",
+    "Classic",
+    "Bold",
+    "Soft luxury",
+    "Street style",
+]
 
 # ---------------------------------------------------------------------------
 # Database Helpers
@@ -141,6 +158,17 @@ def init_db():
             color       TEXT    NOT NULL,
             image_path  TEXT    NOT NULL,
             created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS look_previews (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            occasion     TEXT    NOT NULL,
+            style_vibe   TEXT    NOT NULL,
+            styling_goal TEXT,
+            notes        TEXT    NOT NULL,
+            items_json   TEXT    NOT NULL,
+            created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """)
     existing_columns = {
@@ -251,6 +279,82 @@ def ai_try_on_is_ready():
     return bool(OpenAI and os.environ.get("OPENAI_API_KEY"))
 
 
+def build_style_notes(items, occasion, style_vibe, styling_goal):
+    """Create concise stylist notes to make the preview feel guided and premium."""
+    category_map = {item["category"]: item for item in items}
+    notes = []
+
+    top = category_map.get("tops")
+    bottom = category_map.get("bottoms")
+    outerwear = category_map.get("outerwear")
+    shoes = category_map.get("shoes")
+    accessories = category_map.get("accessories")
+
+    if top and bottom:
+        notes.append(
+            f"The {top['color']} {top['name']} anchors the look while the {bottom['color']} {bottom['name']} keeps it grounded and easy to style."
+        )
+    if outerwear:
+        notes.append(
+            f"The {outerwear['name']} adds structure, which makes this feel more {style_vibe.lower()} for {occasion.lower()}."
+        )
+    if shoes:
+        notes.append(
+            f"{shoes['name']} helps the outfit feel finished instead of thrown together."
+        )
+    if accessories:
+        notes.append(
+            f"{accessories['name']} gives the look a more intentional final layer."
+        )
+
+    notes.append(
+        f"This outfit is tuned for {occasion.lower()} with a {style_vibe.lower()} mood so it feels polished and wearable."
+    )
+
+    if styling_goal:
+        notes.append(
+            f"Styling priority: {styling_goal.strip().rstrip('.')}."
+        )
+
+    return notes[:4]
+
+
+def save_look_preview(user_id, occasion, style_vibe, styling_goal, notes, items):
+    """Persist recent look previews so users see ongoing value."""
+    db = get_db()
+    db.execute(
+        """
+        INSERT INTO look_previews (user_id, occasion, style_vibe, styling_goal, notes, items_json)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (user_id, occasion, style_vibe, styling_goal, "\n".join(notes), json.dumps(items))
+    )
+    db.commit()
+
+
+def recent_previews_for_user(user_id, limit=6):
+    """Fetch recent generated looks for dashboard history."""
+    db = get_db()
+    rows = db.execute(
+        """
+        SELECT id, occasion, style_vibe, styling_goal, notes, items_json, created_at
+        FROM look_previews
+        WHERE user_id = ?
+        ORDER BY created_at DESC, id DESC
+        LIMIT ?
+        """,
+        (user_id, limit)
+    ).fetchall()
+
+    previews = []
+    for row in rows:
+        preview = dict(row)
+        preview["items"] = json.loads(preview.pop("items_json"))
+        preview["notes"] = [note for note in preview["notes"].split("\n") if note]
+        previews.append(preview)
+    return previews
+
+
 # ---------------------------------------------------------------------------
 # Routes — Auth
 # ---------------------------------------------------------------------------
@@ -354,7 +458,10 @@ def dashboard():
         user=user,
         items=items,
         counts=counts,
-        categories=CATEGORIES
+        categories=CATEGORIES,
+        preview_occasions=PREVIEW_OCCASIONS,
+        style_vibes=STYLE_VIBES,
+        recent_previews=recent_previews_for_user(user["id"])
     )
 
 
@@ -502,6 +609,14 @@ def preview_look():
 
     user = current_user()
     item_ids = request.form.getlist("item_ids")
+    occasion = request.form.get("occasion", PREVIEW_OCCASIONS[0]).strip()
+    style_vibe = request.form.get("style_vibe", STYLE_VIBES[0]).strip()
+    styling_goal = request.form.get("styling_goal", "").strip()
+
+    if occasion not in PREVIEW_OCCASIONS:
+        occasion = PREVIEW_OCCASIONS[0]
+    if style_vibe not in STYLE_VIBES:
+        style_vibe = STYLE_VIBES[0]
 
     try:
         item_ids = [int(item_id) for item_id in item_ids]
@@ -551,6 +666,8 @@ def preview_look():
         "Do not add extra garments that were not provided. "
         "Do not copy branding, watermarks, or product-shot backgrounds from the references. "
         "Use a simple neutral background and clear front-facing pose. "
+        f"The intended occasion is {occasion.lower()} and the styling vibe is {style_vibe.lower()}. "
+        f"User styling goal: {styling_goal or 'Look polished and expensive without feeling overdone'}. "
         f"Selected outfit pieces: {styling_notes}. "
         "This is a wardrobe-planning visualization, not a shopping ad."
     )
@@ -575,9 +692,17 @@ def preview_look():
         app.logger.exception("OpenAI try-on preview failed.")
         return jsonify({"error": f"Unable to create AI preview: {exc}"}), 500
 
+    notes = build_style_notes(items, occasion, style_vibe, styling_goal)
+    save_look_preview(user["id"], occasion, style_vibe, styling_goal, notes, items)
+
     return jsonify({
         "image_data_url": f"data:image/png;base64,{image_b64}",
         "selected_items": items,
+        "occasion": occasion,
+        "style_vibe": style_vibe,
+        "styling_goal": styling_goal,
+        "notes": notes,
+        "recent_previews": recent_previews_for_user(user["id"]),
     })
 
 

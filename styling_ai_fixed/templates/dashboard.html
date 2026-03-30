@@ -75,7 +75,7 @@
       <div class="outfit-section__header">
         <div>
           <h2 class="outfit-section__title">AI Outfit Preview</h2>
-          <p class="app-header__sub">Select wardrobe pieces below and the app will automatically generate a model-style preview.</p>
+          <p class="app-header__sub">Select wardrobe pieces below and the app will automatically generate a model-style preview with tailored styling notes.</p>
         </div>
       </div>
 
@@ -85,6 +85,36 @@
             <span class="drop-zone__icon">AI</span>
             <p class="drop-zone__text">No body photo needed.</p>
             <p class="drop-zone__hint">The preview is generated automatically from the selected clothing images and shown on an AI model.</p>
+          </div>
+
+          <div class="tryon-settings">
+            <div class="form-group">
+              <label for="occasionSelect" class="form-label">Occasion</label>
+              <select id="occasionSelect" class="form-input form-select">
+                {% for occasion in preview_occasions %}
+                <option value="{{ occasion }}">{{ occasion }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="styleVibeSelect" class="form-label">Style Vibe</label>
+              <select id="styleVibeSelect" class="form-input form-select">
+                {% for vibe in style_vibes %}
+                <option value="{{ vibe }}">{{ vibe }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="stylingGoalInput" class="form-label">Styling Goal</label>
+              <input
+                id="stylingGoalInput"
+                class="form-input"
+                type="text"
+                placeholder="Look expensive, feel comfortable, sharpen the silhouette..."
+              />
+            </div>
           </div>
 
           <div class="tryon-actions">
@@ -104,6 +134,44 @@
       </div>
 
       <p id="tryOnError" class="outfit-error" style="display:none;"></p>
+    </section>
+
+    <section class="history-section">
+      <div class="outfit-section__header">
+        <div>
+          <h2 class="outfit-section__title">Recent Styled Looks</h2>
+          <p class="app-header__sub">A running history of the looks and briefs you have already generated.</p>
+        </div>
+      </div>
+
+      <div id="recentPreviews" class="preview-history">
+        {% if recent_previews %}
+          {% for preview in recent_previews %}
+          <article class="preview-history__card">
+            <div class="preview-history__head">
+              <span class="badge">{{ preview.style_vibe }}</span>
+              <span class="preview-history__occasion">{{ preview.occasion }}</span>
+            </div>
+            <p class="preview-history__goal">{{ preview.styling_goal or 'No specific styling goal saved.' }}</p>
+            <ul class="preview-history__items">
+              {% for item in preview.items %}
+              <li>{{ item.category }}: {{ item.name }}</li>
+              {% endfor %}
+            </ul>
+            <ul class="preview-history__notes">
+              {% for note in preview.notes %}
+              <li>{{ note }}</li>
+              {% endfor %}
+            </ul>
+          </article>
+          {% endfor %}
+        {% else %}
+          <div class="wardrobe-empty">
+            <p>No looks saved yet.</p>
+            <span>Generate your first AI preview and it will appear here.</span>
+          </div>
+        {% endif %}
+      </div>
     </section>
 
     <!-- Wardrobe Grid -->

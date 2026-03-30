@@ -15,6 +15,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const tryOnError     = document.getElementById("tryOnError");
   const tryOnResult    = document.getElementById("tryOnResult");
   const tryOnSelectionCount = document.getElementById("tryOnSelectionCount");
+  const occasionSelect = document.getElementById("occasionSelect");
+  const styleVibeSelect = document.getElementById("styleVibeSelect");
+  const stylingGoalInput = document.getElementById("stylingGoalInput");
+  const recentPreviews = document.getElementById("recentPreviews");
   const selectedTryOnItems = new Map();
   let tryOnTimeoutId = null;
 
@@ -113,20 +117,55 @@ document.addEventListener("DOMContentLoaded", () => {
     tryOnSelectionCount.textContent = `${count} item${count === 1 ? "" : "s"} selected`;
   }
 
-  function renderTryOnResult(imageUrl, items) {
+  function renderTryOnResult(imageUrl, items, meta = {}) {
     if (!tryOnResult) return;
     const itemMarkup = items.map(item => (
       `<li>${item.category}: ${item.name} (${item.color})</li>`
     )).join("");
+    const notesMarkup = (meta.notes || []).map(note => `<li>${note}</li>`).join("");
     tryOnResult.classList.remove("tryon-result--empty");
     tryOnResult.innerHTML = `
       <img src="${imageUrl}" alt="AI try-on preview" class="tryon-result__image" />
       <div class="tryon-result__info">
         <h3 class="tryon-result__title">Preview complete</h3>
         <p class="tryon-result__body">This is an AI styling visualization of how the selected outfit may look on a model.</p>
+        <div class="tryon-result__meta">
+          <span class="badge">${meta.style_vibe || "Styled"}</span>
+          <span>${meta.occasion || "Everyday polish"}</span>
+        </div>
         <ul class="tryon-result__items">${itemMarkup}</ul>
+        ${notesMarkup ? `<div class="tryon-result__notes-wrap"><h4 class="tryon-result__subtitle">Why it works</h4><ul class="tryon-result__notes">${notesMarkup}</ul></div>` : ""}
       </div>
     `;
+  }
+
+  function renderRecentPreviews(previews) {
+    if (!recentPreviews || !Array.isArray(previews)) return;
+    if (!previews.length) {
+      recentPreviews.innerHTML = `
+        <div class="wardrobe-empty">
+          <p>No looks saved yet.</p>
+          <span>Generate your first AI preview and it will appear here.</span>
+        </div>
+      `;
+      return;
+    }
+
+    recentPreviews.innerHTML = previews.map(preview => {
+      const items = (preview.items || []).map(item => `<li>${item.category}: ${item.name}</li>`).join("");
+      const notes = (preview.notes || []).map(note => `<li>${note}</li>`).join("");
+      return `
+        <article class="preview-history__card">
+          <div class="preview-history__head">
+            <span class="badge">${preview.style_vibe}</span>
+            <span class="preview-history__occasion">${preview.occasion}</span>
+          </div>
+          <p class="preview-history__goal">${preview.styling_goal || "No specific styling goal saved."}</p>
+          <ul class="preview-history__items">${items}</ul>
+          <ul class="preview-history__notes">${notes}</ul>
+        </article>
+      `;
+    }).join("");
   }
 
   function hasValidTryOnSelection() {
@@ -147,6 +186,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const formData = new FormData();
     selectedTryOnItems.forEach(item => formData.append("item_ids", item.id));
+    formData.append("occasion", occasionSelect?.value || "");
+    formData.append("style_vibe", styleVibeSelect?.value || "");
+    formData.append("styling_goal", stylingGoalInput?.value || "");
 
     try {
       const response = await fetch(window.APP.previewUrl, {
@@ -160,7 +202,8 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      renderTryOnResult(data.image_data_url, data.selected_items || []);
+      renderTryOnResult(data.image_data_url, data.selected_items || [], data);
+      renderRecentPreviews(data.recent_previews || []);
     } catch {
       showTryOnError("Network error while creating the preview.");
     } finally {
@@ -247,6 +290,16 @@ document.addEventListener("DOMContentLoaded", () => {
       requestTryOnPreview();
     });
   }
+
+  [occasionSelect, styleVibeSelect].forEach(control => {
+    control?.addEventListener("change", () => {
+      if (hasValidTryOnSelection()) scheduleTryOnPreview();
+    });
+  });
+
+  stylingGoalInput?.addEventListener("change", () => {
+    if (hasValidTryOnSelection()) scheduleTryOnPreview();
+  });
 
 
   /* ─────────────────────────────────────────────
