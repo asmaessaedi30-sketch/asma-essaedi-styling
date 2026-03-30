@@ -31,6 +31,7 @@ from flask import (
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 # ---------------------------------------------------------------------------
 # App Configuration
@@ -213,6 +214,24 @@ def current_user():
         return None
     db = get_db()
     return db.execute("SELECT * FROM users WHERE id = ?", (session["user_id"],)).fetchone()
+
+
+def reset_token_serializer():
+    """Create a timed serializer for password reset tokens."""
+    return URLSafeTimedSerializer(app.secret_key, salt="password-reset")
+
+
+def build_reset_token(email):
+    """Create a signed password reset token for a user email."""
+    return reset_token_serializer().dumps(email)
+
+
+def verify_reset_token(token, max_age=3600):
+    """Validate a reset token and return the email or None."""
+    try:
+        return reset_token_serializer().loads(token, max_age=max_age)
+    except (BadSignature, SignatureExpired):
+        return None
 
 
 def stripe_is_ready():
@@ -424,6 +443,58 @@ def logout():
     """Clear the session and redirect to the landing page."""
     session.clear()
     return redirect(url_for("index"))
+
+
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    """Let a user request a password reset link."""
+    reset_link = None
+
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        db = get_db()
+        user = db.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+
+        if user:
+            token = build_reset_token(email)
+            reset_link = f"{app_base_url()}{url_for('reset_password', token=token)}"
+            flash("Password reset link generated below. Open it to set a new password.", "success")
+        else:
+            flash("We couldn't find an account with that email.", "error")
+
+    return render_template("forgot_password.html", reset_link=reset_link)
+
+
+@app.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    """Allow a user to set a new password from a signed token."""
+    email = verify_reset_token(token)
+    if not email:
+        flash("That reset link is invalid or has expired.", "error")
+        return redirect(url_for("forgot_password"))
+
+    if request.method == "POST":
+        password = request.form.get("password", "")
+        confirm_password = request.form.get("confirm_password", "")
+
+        if len(password) < 8:
+            flash("Use at least 8 characters for your new password.", "error")
+            return redirect(url_for("reset_password", token=token))
+
+        if password != confirm_password:
+            flash("Passwords do not match.", "error")
+            return redirect(url_for("reset_password", token=token))
+
+        db = get_db()
+        db.execute(
+            "UPDATE users SET password = ? WHERE email = ?",
+            (generate_password_hash(password), email)
+        )
+        db.commit()
+        flash("Your password has been reset. Log in with your new password.", "success")
+        return redirect(url_for("login"))
+
+    return render_template("reset_password.html", token=token, email=email)
 
 
 # ---------------------------------------------------------------------------

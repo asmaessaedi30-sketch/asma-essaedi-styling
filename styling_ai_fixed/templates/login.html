@@ -28,6 +28,10 @@
             <input id="password" name="password" type="password" class="form-input" placeholder="Enter your password" required />
           </div>
 
+          <div class="auth-form__link-row">
+            <a href="{{ url_for('forgot_password') }}" class="link">Forgot your password?</a>
+          </div>
+
           <button type="submit" class="btn btn--primary btn--full">Log In</button>
         </form>
 
