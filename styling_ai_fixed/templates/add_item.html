@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Add Item — Asma Essaedi{% endblock %}
+
+{% block content %}
+<div class="app-layout">
+  <aside class="sidebar">
+    <a href="{{ url_for('dashboard') }}" class="sidebar__logo">Asma Essaedi</a>
+    <nav class="sidebar__nav">
+      <a href="{{ url_for('dashboard') }}" class="sidebar__link">Dashboard</a>
+      <a href="{{ url_for('add_item') }}" class="sidebar__link sidebar__link--active">Add Item</a>
+    </nav>
+    <div class="sidebar__user">
+      <span class="sidebar__user-name">{{ user['name'] }}</span>
+      {% if user['tier'] == 'pro' %}
+        <span class="badge badge--pro">PRO</span>
+      {% else %}
+        <span class="sidebar__user-tier">Free Plan</span>
+      {% endif %}
+      <a href="{{ url_for('logout') }}" class="sidebar__logout">Sign out</a>
+    </div>
+  </aside>
+
+  <main class="app-main upload-layout">
+    <header class="app-header">
+      <div>
+        <h1 class="app-header__title">Add a wardrobe item</h1>
+        <p class="app-header__sub">Upload a photo and save the piece to your digital closet.</p>
+      </div>
+    </header>
+
+    <form method="post" enctype="multipart/form-data" class="upload-form">
+      <label class="drop-zone" for="image">
+        <input id="image" name="image" type="file" accept=".png,.jpg,.jpeg,.webp" class="drop-zone__input" required />
+        <img id="imagePreview" class="drop-zone__preview" alt="Preview" hidden />
+        <div class="drop-zone__content">
+          <span class="drop-zone__icon">+</span>
+          <p class="drop-zone__text">Drag a photo here or <span class="drop-zone__label">browse</span></p>
+          <p class="drop-zone__hint">PNG, JPG, JPEG, or WEBP up to 8MB</p>
+        </div>
+      </label>
+
+      <div class="upload-fields">
+        <div class="form-group">
+          <label for="name" class="form-label">Item name</label>
+          <input id="name" name="name" type="text" class="form-input" placeholder="Black blazer" required />
+        </div>
+
+        <div class="form-group">
+          <label for="category" class="form-label">Category</label>
+          <select id="category" name="category" class="form-input form-select" required>
+            <option value="" disabled selected>Select a category</option>
+            {% for category in categories %}
+              <option value="{{ category }}">{{ category.capitalize() }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="color" class="form-label">Color</label>
+          <input id="color" name="color" type="text" class="form-input" placeholder="Charcoal, cream, navy..." required />
+        </div>
+
+        <button type="submit" class="btn btn--primary">Save Item</button>
+      </div>
+    </form>
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const input = document.getElementById("image");
+    const preview = document.getElementById("imagePreview");
+    const dropZone = input?.closest(".drop-zone");
+
+    if (!input || !preview || !dropZone) return;
+
+    function updatePreview(file) {
+      if (!file) {
+        preview.hidden = true;
+        preview.removeAttribute("src");
+        return;
+      }
+
+      const objectUrl = URL.createObjectURL(file);
+      preview.src = objectUrl;
+      preview.hidden = false;
+    }
+
+    input.addEventListener("change", () => updatePreview(input.files?.[0]));
+    ["dragenter", "dragover"].forEach(eventName => {
+      dropZone.addEventListener(eventName, event => {
+        event.preventDefault();
+        dropZone.classList.add("drop-zone--over");
+      });
+    });
+    ["dragleave", "drop"].forEach(eventName => {
+      dropZone.addEventListener(eventName, event => {
+        event.preventDefault();
+        dropZone.classList.remove("drop-zone--over");
+      });
+    });
+  });
+</script>
+{% endblock %}

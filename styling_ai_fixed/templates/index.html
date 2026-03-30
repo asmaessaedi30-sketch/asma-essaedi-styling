@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Asma Essaedi — Personal Stylist{% endblock %}
+
+{% block content %}
+<div class="landing">
+  <nav class="nav nav--landing">
+    <a href="{{ url_for('index') }}" class="nav__logo">Asma Essaedi</a>
+    <div class="nav__links">
+      <a href="{{ url_for('login') }}" class="nav__link">Log In</a>
+      <a href="{{ url_for('signup') }}" class="btn btn--primary">Create Account</a>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <span class="hero__eyebrow">Asma Essaedi personal styling</span>
+    <h1 class="hero__headline">Style the wardrobe you already own, with an <em>Asma Essaedi</em> touch.</h1>
+    <p class="hero__sub">
+      Build your digital wardrobe, generate polished outfits in seconds, and keep your closet organized in one elegant dashboard.
+    </p>
+    <div class="hero__cta">
+      <a href="{{ url_for('signup') }}" class="btn btn--primary">Start Free</a>
+      <span class="hero__cta-note">No credit card required for the MVP</span>
+    </div>
+  </section>
+
+  <section class="features">
+    <article class="feature">
+      <span class="feature__num">01</span>
+      <h2 class="feature__title">Digitize your wardrobe</h2>
+      <p class="feature__body">Upload your favorite pieces with photos, categories, and color details so your closet becomes searchable and organized.</p>
+    </article>
+    <article class="feature">
+      <span class="feature__num">02</span>
+      <h2 class="feature__title">Generate fresh outfits</h2>
+      <p class="feature__body">Let the app assemble tops, bottoms, and shoes into quick daily looks from what you already have.</p>
+    </article>
+    <article class="feature">
+      <span class="feature__num">03</span>
+      <h2 class="feature__title">Upgrade when ready</h2>
+      <p class="feature__body">The Pro hook is already scaffolded so occasion-based styling and AI reasoning can be layered in later.</p>
+    </article>
+  </section>
+
+  <footer class="footer">
+    <span>Asma Essaedi</span>
+    <span>Flask · SQLite · Vanilla JS</span>
+  </footer>
+</div>
+{% endblock %}

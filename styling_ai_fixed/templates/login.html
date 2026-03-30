@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Log In — Asma Essaedi{% endblock %}
+
+{% block content %}
+<main class="auth-page">
+  <div class="auth-page__split">
+    <section class="auth-panel auth-panel--left">
+      <a href="{{ url_for('index') }}" class="auth-panel__logo">Asma Essaedi</a>
+      <blockquote class="auth-panel__quote">
+        “The best outfit is the one you can actually build from your own closet.”
+        <cite>Asma Essaedi</cite>
+      </blockquote>
+    </section>
+
+    <section class="auth-panel auth-panel--right">
+      <div class="auth-form-wrap">
+        <h1 class="auth-form__title">Welcome back</h1>
+        <p class="auth-form__sub">Log in to generate outfits and manage your wardrobe.</p>
+
+        <form method="post" class="auth-form">
+          <div class="form-group">
+            <label for="email" class="form-label">Email</label>
+            <input id="email" name="email" type="email" class="form-input" placeholder="you@example.com" required />
+          </div>
+
+          <div class="form-group">
+            <label for="password" class="form-label">Password</label>
+            <input id="password" name="password" type="password" class="form-input" placeholder="Enter your password" required />
+          </div>
+
+          <button type="submit" class="btn btn--primary btn--full">Log In</button>
+        </form>
+
+        <p class="auth-form__footer">
+          Need an account? <a href="{{ url_for('signup') }}" class="link">Create one</a>
+        </p>
+      </div>
+    </section>
+  </div>
+</main>
+{% endblock %}

@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Asma Essaedi{% endblock %}
+
+{% block content %}
+<div class="app-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <a href="/" class="sidebar__logo">Asma Essaedi</a>
+    <nav class="sidebar__nav">
+      <a href="{{ url_for('dashboard') }}" class="sidebar__link sidebar__link--active">Dashboard</a>
+      <a href="{{ url_for('add_item') }}" class="sidebar__link">Add Item</a>
+    </nav>
+    <div class="sidebar__user">
+      <span class="sidebar__user-name">{{ user['name'] }}</span>
+      {% if user['tier'] == 'pro' %}
+        <span class="badge badge--pro">PRO</span>
+      {% else %}
+        <span class="sidebar__user-tier">Free Plan</span>
+      {% endif %}
+      <a href="{{ url_for('logout') }}" class="sidebar__logout">Sign out</a>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="app-main">
+
+    <!-- Header Row -->
+    <header class="app-header">
+      <div>
+        <h1 class="app-header__title">Your Wardrobe</h1>
+        <p class="app-header__sub">{{ items|length }} items across {{ counts|length }} categories</p>
+      </div>
+      <div class="app-header__actions">
+        <a href="{{ url_for('add_item') }}" class="btn btn--outline">+ Add Item</a>
+      </div>
+    </header>
+
+    <!-- Stats Strip -->
+    <div class="stats-strip">
+      {% for cat in categories %}
+      <div class="stat-card">
+        <span class="stat-card__num">{{ counts[cat] }}</span>
+        <span class="stat-card__label">{{ cat.capitalize() }}</span>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Outfit Generator -->
+    <section class="outfit-section">
+      <div class="outfit-section__header">
+        <h2 class="outfit-section__title">Today's Look</h2>
+        <div class="outfit-section__btns">
+          <button id="generateBtn" class="btn btn--primary">Generate Outfit</button>
+
+          <!-- PREMIUM LOCK: Upgrade to Pro -->
+          <button id="premiumBtn" class="btn btn--locked" {% if user['tier'] == 'pro' %}disabled{% endif %}>
+            ✦ Event Styling
+            {% if user['tier'] != 'pro' %}<span class="lock-icon">🔒</span>{% endif %}
+          </button>
+        </div>
+      </div>
+
+      <!-- Outfit Display Grid -->
+      <div id="outfitDisplay" class="outfit-grid outfit-grid--empty">
+        <div class="outfit-placeholder">
+          <p>Press <strong>Generate Outfit</strong> to create a look from your wardrobe.</p>
+        </div>
+      </div>
+
+      <p id="outfitError" class="outfit-error" style="display:none;"></p>
+    </section>
+
+    <section class="tryon-section">
+      <div class="outfit-section__header">
+        <div>
+          <h2 class="outfit-section__title">AI Outfit Preview</h2>
+          <p class="app-header__sub">Select wardrobe pieces below and the app will automatically generate a model-style preview.</p>
+        </div>
+      </div>
+
+      <div class="tryon-panel">
+        <div class="tryon-form">
+          <div class="tryon-brief">
+            <span class="drop-zone__icon">AI</span>
+            <p class="drop-zone__text">No body photo needed.</p>
+            <p class="drop-zone__hint">The preview is generated automatically from the selected clothing images and shown on an AI model.</p>
+          </div>
+
+          <div class="tryon-actions">
+            <div class="tryon-selection-copy">
+              <span id="tryOnSelectionCount">0 items selected</span>
+              <span>Choose a top, bottom, and optional jacket or shoes below. A preview will render once the look is complete.</span>
+            </div>
+            <button id="tryOnBtn" class="btn btn--outline">Regenerate Preview</button>
+          </div>
+        </div>
+
+        <div id="tryOnResult" class="tryon-result tryon-result--empty">
+          <div class="outfit-placeholder">
+            <p>Select a top and bottom from your wardrobe to create an AI styling preview automatically.</p>
+          </div>
+        </div>
+      </div>
+
+      <p id="tryOnError" class="outfit-error" style="display:none;"></p>
+    </section>
+
+    <!-- Wardrobe Grid -->
+    <section class="wardrobe-section">
+      <h2 class="wardrobe-section__title">All Items</h2>
+
+      {% if items %}
+        <!-- Category filter tabs -->
+        <div class="filter-tabs">
+          <button class="filter-tab filter-tab--active" data-cat="all">All</button>
+          {% for cat in categories %}
+            {% if counts[cat] > 0 %}
+              <button class="filter-tab" data-cat="{{ cat }}">{{ cat.capitalize() }}</button>
+            {% endif %}
+          {% endfor %}
+        </div>
+
+        <div class="wardrobe-grid" id="wardrobeGrid">
+          {% for item in items %}
+          <div class="wardrobe-card" data-category="{{ item['category'] }}">
+            <div class="wardrobe-card__img-wrap">
+              <img
+                src="{{ url_for('uploaded_file', filename=item['image_path']) }}"
+                alt="{{ item['name'] }}"
+                class="wardrobe-card__img"
+                loading="lazy"
+              />
+            </div>
+            <div class="wardrobe-card__info">
+              <span class="wardrobe-card__name">{{ item['name'] }}</span>
+              <span class="wardrobe-card__meta">{{ item['category'] }} · {{ item['color'] }}</span>
+            </div>
+            <button
+              class="wardrobe-card__select"
+              type="button"
+              data-item-id="{{ item['id'] }}"
+              data-category="{{ item['category'] }}"
+              data-name="{{ item['name'] }}"
+            >Select for AI</button>
+            <button
+              class="wardrobe-card__delete"
+              data-id="{{ item['id'] }}"
+              title="Remove item"
+            >×</button>
+          </div>
+          {% endfor %}
+        </div>
+
+      {% else %}
+        <div class="wardrobe-empty">
+          <p>Your wardrobe is empty.</p>
+          <a href="{{ url_for('add_item') }}" class="btn btn--primary">Add your first item →</a>
+        </div>
+      {% endif %}
+    </section>
+
+  </main>
+</div>
+
+<!-- ── Premium Upgrade Modal ── -->
+<div id="premiumModal" class="modal" aria-hidden="true">
+  <div class="modal__backdrop"></div>
+  <div class="modal__box">
+    <button class="modal__close" id="closeModal">×</button>
+    <div class="modal__badge">PRO</div>
+    <h2 class="modal__title">Unlock AI Event Styling</h2>
+    <p class="modal__body">
+      Tell us your occasion — a wedding, a job interview, a first date —
+      and our AI stylist will build the perfect outfit from your wardrobe,
+      with personalized notes on why each piece works.
+    </p>
+    <ul class="modal__perks">
+      <li>✦ Occasion-aware outfit generation</li>
+      <li>✦ Style reasoning & outfit notes</li>
+      <li>✦ Unlimited wardrobe items</li>
+      <li>✦ Priority AI processing</li>
+    </ul>
+    <div class="modal__price">
+      <span class="modal__price-amount">$20</span>
+      <span class="modal__price-period">/ month</span>
+    </div>
+    <!-- Stripe integration placeholder -->
+    <button id="stripeBtn" class="btn btn--primary btn--full btn--lg">
+      Upgrade to Pro — $20/mo
+    </button>
+    <p class="modal__disclaimer">Cancel anytime. Secure checkout via Stripe.</p>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Pass server-side data to JavaScript
+  window.APP = {
+    generateUrl: "{{ url_for('generate_outfit') }}",
+    previewUrl: "{{ url_for('preview_look') }}",
+    deleteUrlBase: "/wardrobe/delete/",
+    uploadsBase: "{{ url_for('uploaded_file', filename='') }}",
+    upgradeUrl: "{{ url_for('upgrade_intent') }}"
+  };
+</script>
+{% endblock %}
