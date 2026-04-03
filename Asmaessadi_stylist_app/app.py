@@ -803,8 +803,8 @@ def preview_look():
     except ValueError:
         return jsonify({"error": "Selected wardrobe items were invalid."}), 400
 
-    if len(item_ids) < 2:
-        return jsonify({"error": "Select at least two items, like a top and bottom."}), 400
+    if len(item_ids) < 1:
+        return jsonify({"error": "Select at least one clothing item."}), 400
 
     if len(item_ids) > 4:
         return jsonify({"error": "Select up to four items for one try-on preview."}), 400
@@ -825,8 +825,6 @@ def preview_look():
         return jsonify({"error": "One or more selected items could not be found."}), 404
 
     categories = {item["category"] for item in items}
-    if "tops" not in categories or "bottoms" not in categories:
-        return jsonify({"error": "Select at least one top and one bottom for the preview."}), 400
 
     client = openai_client()
     if client is None:
