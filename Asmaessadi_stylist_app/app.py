@@ -596,12 +596,12 @@ def add_item():
     limit_reached = False
     if user["tier"] != "pro":
         count = db.execute("SELECT COUNT(*) as count FROM wardrobe_items WHERE user_id = ?", (user["id"],)).fetchone()["count"]
-        if count >= 6:
+        if count >= 12:
             limit_reached = True
 
     if request.method == "POST":
         if limit_reached:
-            flash("You have reached the 6-item limit on the Free plan. Upgrade to Pro to add more!", "error")
+            flash("You have reached the 12-item limit on the Free plan. Upgrade to Pro to add more!", "error")
             return redirect(url_for("dashboard"))
 
         name     = request.form.get("name", "").strip()
@@ -735,16 +735,19 @@ Here is their wardrobe inventory in JSON:
 {items_json}
 
 Please select the best combination of items for this context. You can pick up to 4 items (e.g. top, bottom, shoes, outerwear).
-Respond in raw JSON format with two keys:
-- "item_ids": A list of the chosen item IDs (integers).
-- "note": A short, friendly stylist note explaining why you picked this outfit (max 2 sentences).
-Do not include formatting like ```json or anything else, just the JSON object.
+You MUST respond with a valid JSON object with EXACTLY two keys:
+1. "item_ids": A list of the chosen item IDs (integers).
+2. "note": A short, friendly stylist note explaining why you picked this outfit (max 2 sentences).
 """
         try:
             response = client.chat.completions.create(
                 model=os.environ.get("OPENAI_LANGUAGE_MODEL", "gpt-4o"),
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=400
+                messages=[
+                    {"role": "system", "content": "You are a professional stylist that exclusively outputs raw, valid JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=400,
+                response_format={"type": "json_object"}
             )
             content = response.choices[0].message.content.strip()
             if content.startswith("```"):
@@ -887,11 +890,9 @@ def preview_look():
 @app.route("/api/analyze-closet", methods=["POST"])
 @login_required
 def analyze_closet():
-    """Generates an AI wardrobe analysis for Pro users."""
+    """Generates an AI wardrobe analysis for all users."""
     user = current_user()
-    if user["tier"] != "pro":
-        return jsonify({"error": "Closet Analyst is a Pro feature. Upgrade to continue!"}), 403
-        
+
     client = openai_client()
     if client is None:
         return jsonify({"error": "OpenAI is not configured."}), 500

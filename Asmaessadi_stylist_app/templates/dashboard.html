@@ -32,7 +32,7 @@
         <p class="app-header__sub">
           {{ items|length }} items across {{ counts|length }} categories
           {% if user['tier'] != 'pro' %}
-            &nbsp; <span class="badge" style="background:var(--accent); color:var(--surface);">{{ items|length }} / 6 Items Used</span>
+            &nbsp; <span class="badge" style="background:var(--accent); color:var(--surface);">{{ items|length }} / 12 Items Used</span>
           {% endif %}
         </p>
       </div>
@@ -208,13 +208,12 @@
     <section class="analyst-section">
       <div class="outfit-section__header">
         <div>
-          <h2 class="outfit-section__title">AI Closet Analyst <span class="badge badge--pro" style="margin-left:0.5rem">PRO</span></h2>
+          <h2 class="outfit-section__title">AI Closet Analyst </h2>
           <p class="app-header__sub">Get an AI-driven review of your wardrobe, including style vibe, missing essentials, and suggested colors.</p>
         </div>
         <div class="outfit-section__btns">
-          <button id="analyzeBtn" class="btn btn--primary" {% if user['tier'] != 'pro' %}disabled{% endif %}>
+          <button id="analyzeBtn" class="btn btn--primary">
             Analyze My Wardrobe
-            {% if user['tier'] != 'pro' %}<span class="lock-icon">🔒</span>{% endif %}
           </button>
         </div>
       </div>

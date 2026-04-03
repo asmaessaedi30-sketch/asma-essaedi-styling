@@ -70,9 +70,11 @@ document.addEventListener("DOMContentLoaded", () => {
    */
   function renderOutfit(outfit) {
     const slots = [
+      { key: "outerwear", label: "Outerwear" },
       { key: "top",    label: "Top" },
       { key: "bottom", label: "Bottom" },
       { key: "shoes",  label: "Shoes" },
+      { key: "accessories", label: "Accessories" }
     ];
 
     outfitDisplay.classList.remove("outfit-grid--empty");
