@@ -1,2 +1,11 @@
 .DS_Store
 *.zip
+.env
+__pycache__/
+*.pyc
+Asmaessadi_stylist_app/.env
+Asmaessadi_stylist_app/__pycache__/
+Asmaessadi_stylist_app/uploads/
+Asmaessadi_stylist_app/static/uploads/
+Asmaessadi_stylist_app/instance/
+Asmaessadi_stylist_app/*.db

@@ -8,17 +8,19 @@ document.addEventListener("DOMContentLoaded", () => {
   /* ─────────────────────────────────────────────
      1. Outfit Generator
   ───────────────────────────────────────────── */
-  const generateBtn    = document.getElementById("generateBtn");
-  const outfitDisplay  = document.getElementById("outfitDisplay");
-  const outfitError    = document.getElementById("outfitError");
-  const tryOnBtn       = document.getElementById("tryOnBtn");
-  const tryOnError     = document.getElementById("tryOnError");
-  const tryOnResult    = document.getElementById("tryOnResult");
+  const generateBtn       = document.getElementById("generateBtn");
+  const outfitDisplay     = document.getElementById("outfitDisplay");
+  const outfitError       = document.getElementById("outfitError");
+  const styleContextInput = document.getElementById("styleContextInput");
+  const outfitNote        = document.getElementById("outfitNote");
+  const tryOnBtn          = document.getElementById("tryOnBtn");
+  const tryOnError        = document.getElementById("tryOnError");
+  const tryOnResult       = document.getElementById("tryOnResult");
   const tryOnSelectionCount = document.getElementById("tryOnSelectionCount");
-  const occasionSelect = document.getElementById("occasionSelect");
-  const styleVibeSelect = document.getElementById("styleVibeSelect");
-  const stylingGoalInput = document.getElementById("stylingGoalInput");
-  const recentPreviews = document.getElementById("recentPreviews");
+  const occasionSelect    = document.getElementById("occasionSelect");
+  const styleVibeSelect   = document.getElementById("styleVibeSelect");
+  const stylingGoalInput  = document.getElementById("stylingGoalInput");
+  const recentPreviews    = document.getElementById("recentPreviews");
   const selectedTryOnItems = new Map();
   let tryOnTimeoutId = null;
 
@@ -26,10 +28,19 @@ document.addEventListener("DOMContentLoaded", () => {
     generateBtn.addEventListener("click", async () => {
       generateBtn.classList.add("btn--loading");
       generateBtn.textContent = "Styling…";
-      outfitError.style.display = "none";
+      if (outfitError) outfitError.style.display = "none";
+      if (outfitNote) outfitNote.style.display = "none";
 
       try {
-        const res  = await fetch(window.APP.generateUrl, { method: "POST" });
+        const formData = new FormData();
+        if (styleContextInput) {
+          formData.append("context", styleContextInput.value);
+        }
+
+        const res  = await fetch(window.APP.generateUrl, { 
+          method: "POST", 
+          body: formData 
+        });
         const data = await res.json();
 
         if (!res.ok || data.error) {
@@ -38,6 +49,11 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         renderOutfit(data.outfit);
+        
+        if (outfitNote && data.note) {
+          outfitNote.textContent = data.note;
+          outfitNote.style.display = "block";
+        }
 
       } catch (err) {
         showOutfitError("Network error — please try again.");
@@ -351,6 +367,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  document.querySelectorAll(".premium-trigger").forEach(btn => {
+    if (btn) btn.addEventListener("click", openModal);
+  });
+
   // Stripe CTA — records intent and redirects to Stripe checkout when configured
   if (stripeBtn) {
     stripeBtn.addEventListener("click", async () => {
@@ -388,5 +408,159 @@ document.addEventListener("DOMContentLoaded", () => {
       setTimeout(() => flash.remove(), 400);
     }, 4000);
   });
+
+  /* ─────────────────────────────────────────────
+     6. AI Closet Analyst
+  ───────────────────────────────────────────── */
+  const analyzeBtn = document.getElementById("analyzeBtn");
+  const analystResult = document.getElementById("analystResult");
+  const analystError = document.getElementById("analystError");
+
+  if (analyzeBtn) {
+    analyzeBtn.addEventListener("click", async () => {
+      analyzeBtn.classList.add("btn--loading");
+      analyzeBtn.textContent = "Analyzing…";
+      
+      if (analystError) analystError.style.display = "none";
+      if (analystResult) analystResult.style.display = "none";
+
+      try {
+        const res  = await fetch(window.APP.analyzeUrl, { method: "POST" });
+        const data = await res.json();
+
+        if (!res.ok || data.error) {
+          if (analystError) {
+            analystError.textContent = data.error || "Analysis failed.";
+            analystError.style.display = "block";
+          }
+          return;
+        }
+
+        if (analystResult) {
+          analystResult.innerHTML = data.analysis;
+          analystResult.style.display = "block";
+        }
+
+      } catch (err) {
+        if (analystError) {
+          analystError.textContent = "Network error while analyzing.";
+          analystError.style.display = "block";
+        }
+      } finally {
+        analyzeBtn.classList.remove("btn--loading");
+        analyzeBtn.textContent = "Analyze My Wardrobe";
+      }
+    });
+  /* ─────────────────────────────────────────────
+     7. Digital Style Board
+  ───────────────────────────────────────────── */
+  const board = document.getElementById("styleBoardDropzone");
+  const hint = document.getElementById("styleBoardHint");
+  const clearBtn = document.getElementById("clearBoardBtn");
+
+  if (board) {
+    let zIndexCounter = 1;
+
+    document.querySelectorAll('.drag-item').forEach(item => {
+      item.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('src', e.target.src);
+        e.dataTransfer.setData('offsetX', e.offsetX);
+        e.dataTransfer.setData('offsetY', e.offsetY);
+      });
+    });
+
+    board.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+    });
+
+    board.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const src = e.dataTransfer.getData('src');
+      if (!src) return;
+
+      if (hint) hint.style.display = 'none';
+
+      const offsetX = parseInt(e.dataTransfer.getData('offsetX') || 50, 10);
+      const offsetY = parseInt(e.dataTransfer.getData('offsetY') || 50, 10);
+      
+      const rect = board.getBoundingClientRect();
+      const x = e.clientX - rect.left - offsetX;
+      const y = e.clientY - rect.top - offsetY;
+
+      const wrapper = document.createElement('div');
+      wrapper.style.position = 'absolute';
+      wrapper.style.left = `${x}px`;
+      wrapper.style.top = `${y}px`;
+      wrapper.style.width = '150px';
+      wrapper.style.height = 'auto';
+      wrapper.style.cursor = 'move';
+      wrapper.style.zIndex = zIndexCounter++;
+      
+      wrapper.style.resize = 'both';
+      wrapper.style.overflow = 'hidden';
+      wrapper.style.border = '2px solid transparent';
+      wrapper.style.padding = '4px';
+      wrapper.style.borderRadius = '8px';
+      wrapper.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+      wrapper.style.background = 'transparent';
+
+      const img = document.createElement('img');
+      img.src = src;
+      img.style.width = '100%';
+      img.style.height = '100%';
+      img.style.objectFit = 'contain';
+      img.style.pointerEvents = 'none';
+
+      wrapper.appendChild(img);
+      board.appendChild(wrapper);
+
+      let isDragging = false;
+      let startX, startY, initialX, initialY;
+
+      wrapper.addEventListener('mousedown', (ev) => {
+        const wrapRect = wrapper.getBoundingClientRect();
+        if (ev.clientX > wrapRect.right - 15 && ev.clientY > wrapRect.bottom - 15) return;
+
+        isDragging = true;
+        wrapper.style.zIndex = zIndexCounter++;
+        wrapper.style.border = '2px solid var(--accent)';
+        startX = ev.clientX;
+        startY = ev.clientY;
+        initialX = parseFloat(wrapper.style.left);
+        initialY = parseFloat(wrapper.style.top);
+        ev.preventDefault();
+      });
+
+      document.addEventListener('mousemove', (ev) => {
+        if (!isDragging) return;
+        const dx = ev.clientX - startX;
+        const dy = ev.clientY - startY;
+        wrapper.style.left = `${initialX + dx}px`;
+        wrapper.style.top = `${initialY + dy}px`;
+      });
+
+      document.addEventListener('mouseup', () => {
+        if (isDragging) {
+           isDragging = false;
+           wrapper.style.border = '2px solid transparent';
+        }
+      });
+      
+      wrapper.addEventListener('dblclick', () => {
+        wrapper.remove();
+        if (board.querySelectorAll('div').length === 0 && hint) {
+            hint.style.display = 'block';
+        }
+      });
+    });
+
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        board.querySelectorAll('div').forEach(div => div.remove());
+        if (hint) hint.style.display = 'block';
+      });
+    }
+  }
 
 });

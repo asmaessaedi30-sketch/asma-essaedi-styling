@@ -96,7 +96,6 @@ CATEGORIES = ["tops", "bottoms", "shoes", "outerwear", "accessories"]
 PREVIEW_OCCASIONS = [
     "Everyday polish",
     "Work meeting",
-    "Date night",
     "Brunch",
     "Wedding guest",
     "Travel day",
@@ -559,8 +558,19 @@ def uploaded_file(filename):
 def add_item():
     """Upload a new clothing item to the wardrobe."""
     user = current_user()
+    db = get_db()
+    
+    limit_reached = False
+    if user["tier"] != "pro":
+        count = db.execute("SELECT COUNT(*) as count FROM wardrobe_items WHERE user_id = ?", (user["id"],)).fetchone()["count"]
+        if count >= 6:
+            limit_reached = True
 
     if request.method == "POST":
+        if limit_reached:
+            flash("You have reached the 6-item limit on the Free plan. Upgrade to Pro to add more!", "error")
+            return redirect(url_for("dashboard"))
+
         name     = request.form.get("name", "").strip()
         category = request.form.get("category", "").strip()
         color    = request.form.get("color", "").strip()
@@ -595,8 +605,7 @@ def add_item():
 
         flash("Item added to your wardrobe.", "success")
         return redirect(url_for("dashboard"))
-
-    return render_template("add_item.html", user=user, categories=CATEGORIES)
+    return render_template("add_item.html", user=user, categories=CATEGORIES, limit_reached=limit_reached)
 
 
 @app.route("/wardrobe/delete/<int:item_id>", methods=["POST"])
@@ -633,46 +642,72 @@ def delete_item(item_id):
 @login_required
 def generate_outfit():
     """
-    Generate a random outfit from the user's wardrobe.
-
-    Current implementation: randomly selects one top, one bottom, and one pair
-    of shoes from the database.
-
-    ─────────────────────────────────────────────
-    NEXT PHASE — OpenAI API Integration
-    ─────────────────────────────────────────────
-    Replace the random selection block below with a call to GPT-4 Vision.
-    Suggested approach:
-
-        import openai
-        client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-
-        # Build a prompt that includes base64-encoded item images and metadata
-        # Ask the model to select the most stylistically cohesive combination
-        # Parse the JSON response to get selected item IDs
-
-    See: https://platform.openai.com/docs/guides/vision
-    ─────────────────────────────────────────────
+    Generate a smart outfit from the user's wardrobe based on context.
     """
     user = current_user()
     db   = get_db()
+    context = request.form.get("context", "").strip() or "Something nice for today."
 
-    def pick(category):
-        rows = db.execute(
-            "SELECT * FROM wardrobe_items WHERE user_id = ? AND category = ?",
-            (user["id"], category)
-        ).fetchall()
-        return dict(random.choice(rows)) if rows else None
-
-    top    = pick("tops")
-    bottom = pick("bottoms")
-    shoes  = pick("shoes")
-
-    if not any([top, bottom, shoes]):
+    client = openai_client()
+    
+    # Get all items
+    rows = db.execute(
+        "SELECT id, category, name, color, image_path FROM wardrobe_items WHERE user_id = ?",
+        (user["id"],)
+    ).fetchall()
+    items = [dict(row) for row in rows]
+    
+    if not items:
         return jsonify({"error": "Your wardrobe is empty. Add some items first!"}), 400
 
-    outfit = {"top": top, "bottom": bottom, "shoes": shoes}
-    return jsonify({"outfit": outfit, "generated_at": datetime.utcnow().isoformat()})
+    if client is None:
+        # Fallback to random logic if OpenAI is not configured
+        def pick(category):
+            cat_items = [i for i in items if i["category"] == category]
+            return random.choice(cat_items) if cat_items else None
+        outfit = {"top": pick("tops"), "bottom": pick("bottoms"), "shoes": pick("shoes")}
+        note = "Randomly selected because OpenAI is not configured."
+    else:
+        # AI generate
+        items_json = json.dumps([{"id": i["id"], "category": i["category"], "name": i["name"], "color": i["color"]} for i in items])
+        
+        prompt = f"""You are a personal stylist. The user needs an outfit for: "{context}".
+Here is their wardrobe inventory in JSON:
+{items_json}
+
+Please select the best combination of items for this context. You can pick up to 4 items (e.g. top, bottom, shoes, outerwear).
+Respond in raw JSON format with two keys:
+- "item_ids": A list of the chosen item IDs (integers).
+- "note": A short, friendly stylist note explaining why you picked this outfit (max 2 sentences).
+Do not include formatting like ```json or anything else, just the JSON object.
+"""
+        try:
+            response = client.chat.completions.create(
+                model=os.environ.get("OPENAI_LANGUAGE_MODEL", "gpt-4o"),
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=400
+            )
+            content = response.choices[0].message.content.strip()
+            if content.startswith("```"):
+                content = content.replace("```json", "").replace("```", "").strip()
+            
+            ai_result = json.loads(content)
+            chosen_ids = ai_result.get("item_ids", [])
+            note = ai_result.get("note", "Here is your outfit for the occasion.")
+            
+            outfit_items = [i for i in items if i["id"] in chosen_ids]
+            outfit = {
+                "top": next((i for i in outfit_items if i["category"] == "tops"), None),
+                "bottom": next((i for i in outfit_items if i["category"] == "bottoms"), None),
+                "shoes": next((i for i in outfit_items if i["category"] == "shoes"), None),
+                "outerwear": next((i for i in outfit_items if i["category"] == "outerwear"), None),
+                "accessories": next((i for i in outfit_items if i["category"] == "accessories"), None)
+            }
+        except Exception as exc:
+            app.logger.exception("Generative styling failed.")
+            return jsonify({"error": f"AI Generation failed: {exc}"}), 500
+
+    return jsonify({"outfit": outfit, "note": note, "generated_at": datetime.utcnow().isoformat()})
 
 
 @app.route("/api/preview-look", methods=["POST"])
@@ -690,6 +725,8 @@ def preview_look():
         }), 500
 
     user = current_user()
+    if user["tier"] != "pro":
+        return jsonify({"error": "AI Event Styling is a Pro feature. Upgrade to continue!"}), 403
     item_ids = request.form.getlist("item_ids")
     occasion = request.form.get("occasion", PREVIEW_OCCASIONS[0]).strip()
     style_vibe = request.form.get("style_vibe", STYLE_VIBES[0]).strip()
@@ -786,6 +823,56 @@ def preview_look():
         "notes": notes,
         "recent_previews": recent_previews_for_user(user["id"]),
     })
+
+
+@app.route("/api/analyze-closet", methods=["POST"])
+@login_required
+def analyze_closet():
+    """Generates an AI wardrobe analysis for Pro users."""
+    user = current_user()
+    if user["tier"] != "pro":
+        return jsonify({"error": "Closet Analyst is a Pro feature. Upgrade to continue!"}), 403
+        
+    client = openai_client()
+    if client is None:
+        return jsonify({"error": "OpenAI is not configured."}), 500
+        
+    db = get_db()
+    items = db.execute(
+        "SELECT category, color, name FROM wardrobe_items WHERE user_id = ?",
+        (user["id"],)
+    ).fetchall()
+    
+    if not items:
+        return jsonify({"error": "Your wardrobe is empty. Add items first!"}), 400
+        
+    wardrobe_list = ", ".join(f"{item['color']} {item['category']} ({item['name']})" for item in items)
+    
+    prompt = f"""You are a high-end fashion stylist analyzing a user's closet.
+Their current wardrobe consists of: {wardrobe_list}.
+
+Please provide an analysis containing exactly three sections formatted visually appealing using HTML (use tags like <h3>, <ul>, <li>, <p>, <strong>):
+1. 'Style Vibe': A brief summary of their current aesthetic based on these pieces.
+2. 'Missing Essentials': 3-4 foundational pieces they should buy next to complete their wardrobe.
+3. 'Color Palette': Suggested color palette (3-4 colors) to compliment what they own.
+Return ONLY valid HTML elements inside a single div wrapper, no markdown wrappers, no html wrappers padding, just the inner HTML."""
+
+    try:
+        response = client.chat.completions.create(
+            model=os.environ.get("OPENAI_LANGUAGE_MODEL", "gpt-4o"),
+            messages=[
+                {"role": "system", "content": "You are an expert personal stylist."}, 
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=800
+        )
+        analysis_html = response.choices[0].message.content
+        # sometimes markdown ```html block creeps in
+        analysis_html = analysis_html.replace("```html", "").replace("```", "").strip()
+        return jsonify({"analysis": analysis_html})
+    except Exception as exc:
+        app.logger.exception("OpenAI closet analysis failed.")
+        return jsonify({"error": f"Failed to analyze closet: {exc}"}), 500
 
 
 @app.route("/api/upgrade-intent", methods=["POST"])

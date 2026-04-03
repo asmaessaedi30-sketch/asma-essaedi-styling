@@ -1270,7 +1270,42 @@ h1, h2, h3 {
   to { transform: rotate(360deg); }
 }
 
-/* ── Responsive ──────────────────────────────────────────────────────────── */
+/* ── Premium Locked State ────────────────────────────────────────────────── */
+
+.premium-locked {
+  position: relative;
+  overflow: hidden;
+}
+
+.premium-locked > *:not(.premium-overlay) {
+  filter: blur(8px) grayscale(50%);
+  opacity: 0.5;
+  pointer-events: none;
+  user-select: none;
+  transition: filter 0.3s ease;
+}
+
+.premium-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(var(--surface-rgb, 255, 255, 255), 0.6);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  pointer-events: auto;
+  border-radius: 16px;
+  backdrop-filter: blur(2px);
+}
+
+.analyst-result h3 { font-size: 1.1rem; margin-top: 1.5rem; margin-bottom: 0.5rem; color: var(--text-base); }
+.analyst-result ul { margin-left: 1.5rem; margin-bottom: 1rem; color: var(--text-muted); }
+.analyst-result li { margin-bottom: 0.25rem; }
+.analyst-result strong { color: var(--text-base); font-weight: 500; }
 
 @media (max-width: 900px) {
   .auth-page__split { grid-template-columns: 1fr; }

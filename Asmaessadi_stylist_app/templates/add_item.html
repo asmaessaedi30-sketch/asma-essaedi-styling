@@ -28,6 +28,14 @@
       </div>
     </header>
 
+    {% if limit_reached %}
+    <div class="wardrobe-empty premium-locked">
+      <div class="modal__badge" style="margin: 0 auto 16px;">PRO</div>
+      <h2>Wardrobe Limit Reached (6/6)</h2>
+      <p>You've hit the maximum number of items allowed on the Free Plan. <br>Upgrade to PRO for unlimited wardrobe storage, AI Event Styling, and your own Closet Analyst.</p>
+      <a href="{{ url_for('dashboard') }}" class="btn btn--primary" style="margin-top: 1rem;">View Upgrades on Dashboard</a>
+    </div>
+    {% else %}
     <form method="post" enctype="multipart/form-data" class="upload-form">
       <label class="drop-zone" for="image">
         <input id="image" name="image" type="file" accept=".png,.jpg,.jpeg,.webp" class="drop-zone__input" required />
@@ -63,6 +71,7 @@
         <button type="submit" class="btn btn--primary">Save Item</button>
       </div>
     </form>
+    {% endif %}
   </main>
 </div>
 {% endblock %}
