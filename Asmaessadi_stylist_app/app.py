@@ -451,7 +451,7 @@ def login():
 
         session["user_id"] = user["id"]
         
-        if not user.get("onboarding_completed"):
+        if not dict(user).get("onboarding_completed"):
             return redirect(url_for("onboarding"))
         return redirect(url_for("dashboard"))
 
@@ -463,7 +463,7 @@ def login():
 def onboarding():
     """Personalize the user's dashboard based on their preferences."""
     user = current_user()
-    if user.get("onboarding_completed"):
+    if dict(user).get("onboarding_completed"):
         return redirect(url_for("dashboard"))
         
     if request.method == "POST":
