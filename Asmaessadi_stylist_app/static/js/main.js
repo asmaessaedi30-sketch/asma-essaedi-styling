@@ -453,6 +453,8 @@ document.addEventListener("DOMContentLoaded", () => {
         analyzeBtn.textContent = "Analyze My Wardrobe";
       }
     });
+  }
+
   /* ─────────────────────────────────────────────
      7. Digital Style Board
   ───────────────────────────────────────────── */
