@@ -41,14 +41,31 @@
       </div>
     </header>
 
-    <!-- Stats Strip -->
-    <div class="stats-strip">
-      {% for cat in categories %}
-      <div class="stat-card">
-        <span class="stat-card__num">{{ counts[cat] }}</span>
-        <span class="stat-card__label">{{ cat.capitalize() }}</span>
+    <!-- Quick Actions Panel -->
+    <div class="quick-actions" style="display: flex; gap: 1rem; margin-bottom: 2rem; padding: 1.5rem; background: var(--surface); border: 1px solid var(--mid); border-radius: var(--radius-lg); overflow-x: auto;">
+      <a href="{{ url_for('add_item') }}" class="btn btn--primary"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><path d="M12 5v14M5 12h14"/></svg> Add Item</a>
+      <button class="btn btn--outline" onclick="window.scrollTo(0, document.querySelector('.outfit-section').offsetTop)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><path d="M12 2l3 6 6 1-4 4 1 6-6-3-6 3 1-6-4-4 6-1z"/></svg> Style Me AI</button>
+      <button class="btn btn--outline" onclick="window.scrollTo(0, document.querySelector('.analyst-section').offsetTop)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Analyst</button>
+      <form action="{{ url_for('export_wardrobe') }}" method="GET" style="margin-left: auto;">
+        <button type="submit" class="btn btn--outline" {% if user['tier'] != 'pro' %}disabled title="Pro Feature"{% endif %}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg> Export CSV {% if user['tier'] != 'pro' %}🔒{% endif %}</button>
+      </form>
+    </div>
+
+    <!-- Stats & Analytics Area -->
+    <div style="display: grid; grid-template-columns: 1fr; gap: 2rem; margin-bottom: 3rem;">
+      <div style="display:flex; flex-wrap:wrap; gap:1rem;">
+        <div class="stats-strip" style="flex:1; margin-bottom:0; min-width:300px;">
+          {% for cat in categories %}
+          <div class="stat-card">
+            <span class="stat-card__num">{{ counts[cat] }}</span>
+            <span class="stat-card__label">{{ cat.capitalize() }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="chart-container" style="flex-shrink:0; width:300px; background: var(--surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--mid); display: flex; align-items: center; justify-content: center;">
+          <canvas id="wardrobeChart" style="max-height: 180px;"></canvas>
+        </div>
       </div>
-      {% endfor %}
     </div>
 
     <!-- Outfit Generator -->
@@ -315,6 +332,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
   // Pass server-side data to JavaScript
   window.APP = {
@@ -323,7 +341,41 @@
     analyzeUrl: "{{ url_for('analyze_closet') }}",
     deleteUrlBase: "/wardrobe/delete/",
     uploadsBase: "{{ url_for('uploaded_file', filename='') }}",
-    upgradeUrl: "{{ url_for('upgrade_intent') }}"
+    upgradeUrl: "{{ url_for('upgrade_intent') }}",
+    chartLabels: {{ categories | tojson | safe }},
+    chartData: [
+      {% for cat in categories %} {{ counts[cat] }}, {% endfor %}
+    ]
   };
+
+  document.addEventListener("DOMContentLoaded", () => {
+    // Initialize Chart.js
+    const ctx = document.getElementById('wardrobeChart');
+    if (ctx && window.APP.chartData.reduce((a,b)=>a+b, 0) > 0) {
+      new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: window.APP.chartLabels.map(l => l.charAt(0).toUpperCase() + l.slice(1)),
+          datasets: [{
+            data: window.APP.chartData,
+            backgroundColor: [
+              '#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'
+            ],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          },
+          cutout: '75%'
+        }
+      });
+    } else if (ctx) {
+      ctx.parentElement.innerHTML = '<span style="font-size:0.85rem;color:var(--subtle);">Add items to see analytics</span>';
+    }
+  });
 </script>
 {% endblock %}

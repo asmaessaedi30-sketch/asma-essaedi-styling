@@ -14,6 +14,8 @@ import os
 import random
 import sqlite3
 import json
+import csv
+import io
 from functools import wraps
 from datetime import datetime
 
@@ -27,7 +29,8 @@ except ModuleNotFoundError:
     stripe = None
 from flask import (
     Flask, render_template, request, redirect,
-    url_for, session, jsonify, g, flash, send_from_directory
+    url_for, session, jsonify, g, flash, send_from_directory,
+    make_response
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -178,6 +181,10 @@ def init_db():
         db.execute("ALTER TABLE users ADD COLUMN stripe_customer_id TEXT")
     if "stripe_subscription_id" not in existing_columns:
         db.execute("ALTER TABLE users ADD COLUMN stripe_subscription_id TEXT")
+    if "onboarding_completed" not in existing_columns:
+        db.execute("ALTER TABLE users ADD COLUMN onboarding_completed INTEGER DEFAULT 0")
+    if "style_preference" not in existing_columns:
+        db.execute("ALTER TABLE users ADD COLUMN style_preference TEXT")
 
     db.commit()
     db.close()
@@ -423,7 +430,7 @@ def signup():
 
         user = db.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
         session["user_id"] = user["id"]
-        return redirect(url_for("dashboard"))
+        return redirect(url_for("onboarding"))
 
     return render_template("signup.html")
 
@@ -443,11 +450,37 @@ def login():
             return redirect(url_for("login"))
 
         session["user_id"] = user["id"]
+        
+        if not user.get("onboarding_completed"):
+            return redirect(url_for("onboarding"))
         return redirect(url_for("dashboard"))
 
     return render_template("login.html")
 
 
+@app.route("/onboarding", methods=["GET", "POST"])
+@login_required
+def onboarding():
+    """Personalize the user's dashboard based on their preferences."""
+    user = current_user()
+    if user.get("onboarding_completed"):
+        return redirect(url_for("dashboard"))
+        
+    if request.method == "POST":
+        style_goal = request.form.get("style_goal", "").strip()
+        color_vibe = request.form.get("color_vibe", "").strip()
+        
+        preference_json = json.dumps({"style_goal": style_goal, "color_vibe": color_vibe})
+        
+        db = get_db()
+        db.execute(
+            "UPDATE users SET onboarding_completed = 1, style_preference = ? WHERE id = ?",
+            (preference_json, user["id"])
+        )
+        db.commit()
+        return redirect(url_for("dashboard"))
+        
+    return render_template("onboarding.html", user=user)
 @app.route("/logout")
 def logout():
     """Clear the session and redirect to the landing page."""
@@ -633,6 +666,32 @@ def delete_item(item_id):
 
     return jsonify({"success": True})
 
+
+@app.route("/api/export-wardrobe", methods=["GET"])
+@login_required
+def export_wardrobe():
+    """Export all wardrobe items to a CSV file (Pro feature)."""
+    user = current_user()
+    if user["tier"] != "pro":
+        flash("Exporting data is a Pro feature. Upgrade to continue!", "error")
+        return redirect(url_for("dashboard"))
+
+    db = get_db()
+    items = db.execute(
+        "SELECT name, category, color, created_at FROM wardrobe_items WHERE user_id = ? ORDER BY created_at DESC", 
+        (user["id"],)
+    ).fetchall()
+    
+    si = io.StringIO()
+    cw = csv.writer(si)
+    cw.writerow(["Name", "Category", "Color", "Date Added"])
+    for item in items:
+        cw.writerow([item["name"], item["category"], item["color"], item["created_at"]])
+        
+    output = make_response(si.getvalue())
+    output.headers["Content-Disposition"] = f"attachment; filename=stylist_wardrobe_{user['id']}.csv"
+    output.headers["Content-type"] = "text/csv"
+    return output
 
 # ---------------------------------------------------------------------------
 # Routes — AI Stylist (Core Feature)

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Onboarding — Asma Essaedi{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+  <div class="auth-page__split">
+    
+    <div class="auth-panel auth-panel--left" style="background: var(--surface-hover); border-right: 1px solid var(--mid);">
+      <div class="auth-panel__content center" style="margin: auto; max-width: 400px; text-align: center;">
+        <h2 class="h2 clr-gradient" style="margin-bottom: 1rem;">Personalize your AI.</h2>
+        <p class="subtext">We want to make sure your AI stylist understands your exact aesthetic and goals from day one.</p>
+        
+        <!-- Interactive styling mock -->
+        <div class="mockup-window" style="margin-top: 3rem; transform: none; text-align: left;">
+          <div class="mockup-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div>
+          <div class="mockup-body" style="padding: 1.5rem;">
+            <div style="width: 70%; height: 10px; background: var(--mid); border-radius: 4px; margin-bottom: 8px;"></div>
+            <div style="width: 50%; height: 10px; background: var(--mid); border-radius: 4px; margin-bottom: 2rem;"></div>
+            <div style="display: flex; gap: 8px;">
+              <span class="badge badge--pro">Style Locked In</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="auth-panel auth-panel--right" style="justify-content: center;">
+      <div class="form-wrapper" style="max-width: 480px; width: 100%;">
+        <div class="form-header">
+          <h1 style="font-family: var(--font-display); font-size: 2rem; font-weight: 700; margin-bottom: 0.5rem;">Welcome, {{ user.name.split(' ')[0] }}!</h1>
+          <p style="color: var(--subtle); margin-bottom: 2.5rem;">Let's get your digital wardrobe set up.</p>
+        </div>
+
+        <form method="POST" action="{{ url_for('onboarding') }}" class="form auth-form">
+          
+          <div class="form-group" style="margin-bottom: 2rem;">
+            <label class="form-label" style="font-weight: 600; font-size: 1rem; margin-bottom: 1rem;">What is your primary styling goal?</label>
+            <div style="display: flex; flex-direction: column; gap: 0.8rem;">
+              <label style="display: flex; align-items: center; gap: 12px; padding: 1rem; border: 1px solid var(--mid); border-radius: var(--radius); cursor: pointer; transition: border-color var(--transition);">
+                <input type="radio" name="style_goal" value="Look more put together" required>
+                <span>Look more put together daily</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 12px; padding: 1rem; border: 1px solid var(--mid); border-radius: var(--radius); cursor: pointer; transition: border-color var(--transition);">
+                <input type="radio" name="style_goal" value="Save time getting dressed" required>
+                <span>Save time getting dressed</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 12px; padding: 1rem; border: 1px solid var(--mid); border-radius: var(--radius); cursor: pointer; transition: border-color var(--transition);">
+                <input type="radio" name="style_goal" value="Try bolder aesthetic choices" required>
+                <span>Try bolder aesthetic choices</span>
+              </label>
+            </div>
+          </div>
+          
+          <div class="form-group" style="margin-bottom: 2.5rem;">
+            <label class="form-label" style="font-weight: 600; font-size: 1rem; margin-bottom: 1rem;">What is your preferred color vibe?</label>
+            <div style="display: flex; flex-direction: column; gap: 0.8rem;">
+              <label style="display: flex; align-items: center; gap: 12px; padding: 1rem; border: 1px solid var(--mid); border-radius: var(--radius); cursor: pointer; transition: border-color var(--transition);">
+                <input type="radio" name="color_vibe" value="Neutrals & Minimalist" required>
+                <span><span style="display: inline-block; width:12px; height: 12px; border-radius: 50%; background: #000; margin-right: 4px;"></span> Neutrals & Minimalist (Black, White, Beige)</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 12px; padding: 1rem; border: 1px solid var(--mid); border-radius: var(--radius); cursor: pointer; transition: border-color var(--transition);">
+                <input type="radio" name="color_vibe" value="Warm & Earthy" required>
+                <span><span style="display: inline-block; width:12px; height: 12px; border-radius: 50%; background: #A0522D; margin-right: 4px;"></span> Warm & Earthy (Browns, Olives, Rust)</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 12px; padding: 1rem; border: 1px solid var(--mid); border-radius: var(--radius); cursor: pointer; transition: border-color var(--transition);">
+                <input type="radio" name="color_vibe" value="Bright & Expressive" required>
+                <span><span style="display: inline-block; width:12px; height: 12px; border-radius: 50%; background: #FF1493; margin-right: 4px;"></span> Bright & Expressive (Pops of bright colors)</span>
+              </label>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn--primary btn--full btn--lg">Enter Dashboard &rarr;</button>
+        </form>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

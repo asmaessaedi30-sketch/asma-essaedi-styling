@@ -563,4 +563,62 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  /* ─────────────────────────────────────────────
+     8. Simulated Real-Time Activity Ticker
+  ───────────────────────────────────────────── */
+  if (window.location.pathname === '/' || window.location.pathname === '/dashboard') {
+    const toastContainer = document.createElement("div");
+    toastContainer.style.position = "fixed";
+    toastContainer.style.bottom = "20px";
+    toastContainer.style.right = "20px";
+    toastContainer.style.display = "flex";
+    toastContainer.style.flexDirection = "column";
+    toastContainer.style.gap = "10px";
+    toastContainer.style.zIndex = "9999";
+    toastContainer.style.pointerEvents = "none";
+    document.body.appendChild(toastContainer);
+
+    const activities = [
+      "Sarah in NY just styled a 'Coffee Date' look ✨",
+      "Mike just unlocked Pro Analyst 💎",
+      "Emma uploaded 5 new vintage items 📸",
+      "A new 'Smart Casual' outfit was built in London 🎨",
+      "James exported his wardrobe analytics 📊",
+      "Chloe found 3 missing wardrobe essentials 🧠"
+    ];
+
+    function showActivity() {
+      const toast = document.createElement("div");
+      toast.style.background = "var(--white)";
+      toast.style.color = "var(--black)";
+      toast.style.padding = "12px 20px";
+      toast.style.borderRadius = "8px";
+      toast.style.boxShadow = "var(--shadow-lg)";
+      toast.style.borderLeft = "4px solid var(--accent)";
+      toast.style.fontSize = "0.85rem";
+      toast.style.fontWeight = "500";
+      toast.style.transform = "translateX(120%)";
+      toast.style.transition = "transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.5s ease";
+      toast.style.opacity = "0";
+      toast.textContent = activities[Math.floor(Math.random() * activities.length)];
+      
+      toastContainer.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.style.transform = "translateX(0)";
+        toast.style.opacity = "1";
+      }, 100);
+
+      setTimeout(() => {
+        toast.style.transform = "translateX(120%)";
+        toast.style.opacity = "0";
+        setTimeout(() => toast.remove(), 500);
+      }, 5000);
+      
+      setTimeout(showActivity, 15000 + Math.random() * 20000);
+    }
+    
+    setTimeout(showActivity, 3000);
+  }
+
 });

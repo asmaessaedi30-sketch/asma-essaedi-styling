@@ -1,49 +1,146 @@
 {% extends "base.html" %}
-{% block title %}Asma Essaedi — Personal Stylist{% endblock %}
+{% block title %}Asma Essaedi — AI Stylist Workspace{% endblock %}
 
 {% block content %}
 <div class="landing">
   <nav class="nav nav--landing">
-    <a href="{{ url_for('index') }}" class="nav__logo">Asma Essaedi</a>
+    <a href="{{ url_for('index') }}" class="nav__logo" style="display: flex; align-items: center; gap: 8px;">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent);"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>
+      Asma Essaedi
+    </a>
     <div class="nav__links">
-      <a href="{{ url_for('login') }}" class="nav__link">Log In</a>
-      <a href="{{ url_for('signup') }}" class="btn btn--primary">Create Account</a>
+      <a href="#features" class="nav__link hide-mobile">Features</a>
+      <a href="#pricing" class="nav__link hide-mobile">Pricing</a>
+      <a href="{{ url_for('login') }}" class="nav__link" style="font-weight: 500;">Log In</a>
+      <a href="{{ url_for('signup') }}" class="btn btn--primary">Try it Free</a>
     </div>
   </nav>
 
-  <section class="hero">
-    <span class="hero__eyebrow">Asma Essaedi personal styling</span>
-    <h1 class="hero__headline">Style the wardrobe you already own, with an <em>Asma Essaedi</em> touch.</h1>
-    <p class="hero__sub">
-      Build your digital wardrobe, generate polished outfits in seconds, and keep your closet organized in one elegant dashboard.
-    </p>
-    <div class="hero__cta">
-      <a href="{{ url_for('signup') }}" class="btn btn--primary">Start Free</a>
-      <span class="hero__cta-note">No credit card required for the MVP</span>
+  <section class="hero saas-hero">
+    <div class="saas-hero__content">
+      <span class="badge badge--pro" style="margin-bottom: 1.5rem; display: inline-block;">✨ State-of-the-art AI Stylist</span>
+      <h1 class="hero__headline clr-gradient">Your infinite wardrobe,<br>styled by AI</h1>
+      <p class="hero__sub text-large" style="margin-bottom: 2rem; max-width: 600px;">
+        Digitize your closet, get personalized outfit recommendations instantly, and let our AI analyst take the guesswork out of getting dressed.
+      </p>
+      <div class="hero__cta">
+        <a href="{{ url_for('signup') }}" class="btn btn--primary btn--lg">Try it Free</a>
+        <a href="#pricing" class="btn btn--outline btn--lg">View Pricing</a>
+      </div>
+      <p class="hero__cta-note" style="margin-top: 1rem; opacity: 0.7;">No credit card required for the Free plan.</p>
+    </div>
+    
+    <div class="saas-hero__visual">
+      <!-- Simulated App UI for immediate value demonstration -->
+      <div class="mockup-window glassmorphism">
+        <div class="mockup-header">
+          <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+        </div>
+        <div class="mockup-body">
+          <div class="mock-grid">
+            <div class="mock-card mock-skeleton"></div>
+            <div class="mock-card mock-skeleton"></div>
+            <div class="mock-card mock-skeleton"></div>
+          </div>
+          <div class="mock-ai-panel">
+            <h4>Style Me Engine ✨</h4>
+            <p>E.g. A rainy coffee date in Brooklyn...</p>
+            <button class="btn btn--primary btn--sm" style="width:100%">Generate Outfit</button>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 
-  <section class="features">
-    <article class="feature">
-      <span class="feature__num">01</span>
-      <h2 class="feature__title">Digitize your wardrobe</h2>
-      <p class="feature__body">Upload your favorite pieces with photos, categories, and color details so your closet becomes searchable and organized.</p>
-    </article>
-    <article class="feature">
-      <span class="feature__num">02</span>
-      <h2 class="feature__title">Generate fresh outfits</h2>
-      <p class="feature__body">Let the app assemble tops, bottoms, and shoes into quick daily looks from what you already have.</p>
-    </article>
-    <article class="feature">
-      <span class="feature__num">03</span>
-      <h2 class="feature__title">Upgrade when ready</h2>
-      <p class="feature__body">The Pro hook is already scaffolded so occasion-based styling and AI reasoning can be layered in later.</p>
-    </article>
+  <section id="features" class="saas-features">
+    <div class="section-header center">
+      <h2 class="h2">Everything you need to look your best.</h2>
+      <p class="subtext">From tracking your wardrobe down to exporting analytics.</p>
+    </div>
+    <div class="feature-grid">
+      <article class="feature-box">
+        <div class="feature-icon">📸</div>
+        <h3 class="feature-title">Digital Wardrobe</h3>
+        <p class="feature-desc">Upload your favorite pieces so your entire closet becomes visually searchable and perfectly organized.</p>
+      </article>
+      <article class="feature-box">
+        <div class="feature-icon">✨</div>
+        <h3 class="feature-title">Contextual AI Styling</h3>
+        <p class="feature-desc">Tell the AI where you're going and what the weather is like. It builds the perfect outfit instantly.</p>
+      </article>
+      <article class="feature-box">
+        <div class="feature-icon">🎨</div>
+        <h3 class="feature-title">Interactive Moodboard</h3>
+        <p class="feature-desc">Drag and drop your clothes onto an infinite digital canvas to plan flat-lays and test combinations natively.</p>
+      </article>
+      <article class="feature-box">
+        <div class="feature-icon">📊</div>
+        <h3 class="feature-title">Wardrobe Analytics</h3>
+        <p class="feature-desc">Discover the composition of your wardrobe, missing essentials, and suggested color palettes.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="social-proof section-light">
+    <div class="stats-row">
+      <div class="stat-item">
+        <span class="stat-number">50k+</span>
+        <span class="stat-label">Outfits Generated</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-number">98%</span>
+        <span class="stat-label">Style Satisfaction</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-number">2 Hrs</span>
+        <span class="stat-label">Saved Per Week</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="pricing" class="saas-pricing">
+    <div class="section-header center" style="margin-bottom: 3rem;">
+      <h2 class="h2">Simple, transparent pricing.</h2>
+      <p class="subtext">Start for free, upgrade when you need advanced styling power.</p>
+    </div>
+    <div class="pricing-table">
+      <!-- Free Tier -->
+      <div class="pricing-card">
+        <h3>Free</h3>
+        <div class="price"><span class="currency">$</span>0<span class="period">/mo</span></div>
+        <p class="pricing-desc">Perfect to test the waters and digitize your top pieces.</p>
+        <ul class="pricing-features">
+          <li>✓ 6 Wardrobe Items</li>
+          <li>✓ Style Me AI Engine</li>
+          <li>✓ Digital Style Board</li>
+          <li>✗ Pro Closet Analyst</li>
+          <li>✗ AI Photorealistic Try-On</li>
+          <li>✗ CSV Data Export</li>
+        </ul>
+        <a href="{{ url_for('signup') }}" class="btn btn--outline btn--full">Get Started Free</a>
+      </div>
+      <!-- Pro Tier -->
+      <div class="pricing-card pricing-card--pro">
+        <div class="pricing-badge">Most Popular</div>
+        <h3>Pro</h3>
+        <div class="price"><span class="currency">$</span>20<span class="period">/mo</span></div>
+        <p class="pricing-desc">Full access to advanced AI tools and unlimited storage.</p>
+        <ul class="pricing-features">
+          <li>✓ Unlimited Wardrobe Items</li>
+          <li>✓ Style Me AI Engine</li>
+          <li>✓ Digital Style Board</li>
+          <li>✓ AI Photorealistic Try-On</li>
+          <li>✓ Pro Closet Analyst Reports</li>
+          <li>✓ CSV Data Export</li>
+        </ul>
+        <a href="{{ url_for('signup') }}" class="btn btn--primary btn--full">Upgrade to Pro</a>
+      </div>
+    </div>
   </section>
 
   <footer class="footer">
-    <span>Asma Essaedi</span>
-    <span>Flask · SQLite · Vanilla JS</span>
+    <span>Asma Essaedi Styling App</span>
+    <span>SaaS Conversion MVP</span>
   </footer>
 </div>
 {% endblock %}
