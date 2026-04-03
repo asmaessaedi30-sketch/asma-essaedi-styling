@@ -21,7 +21,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const styleVibeSelect   = document.getElementById("styleVibeSelect");
   const stylingGoalInput  = document.getElementById("stylingGoalInput");
   const recentPreviews    = document.getElementById("recentPreviews");
+  const visualizeContainer = document.getElementById("visualizeContainer");
+  const visualizeBtn       = document.getElementById("visualizeBtn");
+  const visualizeResult    = document.getElementById("visualizeResult");
   const selectedTryOnItems = new Map();
+  let currentGeneratedIds = [];
   let tryOnTimeoutId = null;
 
   if (generateBtn) {
@@ -54,12 +58,53 @@ document.addEventListener("DOMContentLoaded", () => {
           outfitNote.textContent = data.note;
           outfitNote.style.display = "block";
         }
+        
+        if (visualizeContainer && data.item_ids && data.item_ids.length >= 2) {
+          currentGeneratedIds = data.item_ids;
+          visualizeContainer.style.display = "block";
+          if (visualizeResult) visualizeResult.innerHTML = "";
+        } else if (visualizeContainer) {
+          visualizeContainer.style.display = "none";
+        }
 
       } catch (err) {
         showOutfitError("Network error — please try again.");
       } finally {
         generateBtn.classList.remove("btn--loading");
         generateBtn.textContent = "Generate Outfit";
+      }
+    });
+  }
+
+  if (visualizeBtn) {
+    visualizeBtn.addEventListener("click", async () => {
+      if (currentGeneratedIds.length < 2) return;
+      visualizeBtn.classList.add("btn--loading");
+      visualizeBtn.textContent = "AI Synthesizing Photo…";
+      if (visualizeResult) visualizeResult.innerHTML = "";
+
+      try {
+        const formData = new FormData();
+        currentGeneratedIds.forEach(id => formData.append("item_ids", id));
+        if (styleContextInput && styleContextInput.value) {
+           formData.append("occasion", styleContextInput.value);
+        }
+        
+        const res = await fetch(window.APP.previewUrl, { method: "POST", body: formData });
+        const data = await res.json();
+        
+        if (!res.ok || data.error) {
+          visualizeResult.innerHTML = `<p style="color:var(--danger)">Error: ${data.error || 'Failed to synthesize'}</p>`;
+        } else {
+          visualizeResult.innerHTML = `
+            <img src="${data.image_url}" alt="Visualized look" style="width:100%; max-width:400px; border-radius:12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-top:20px;" />
+          `;
+        }
+      } catch (err) {
+        visualizeResult.innerHTML = `<p style="color:var(--danger)">Network error.</p>`;
+      } finally {
+        visualizeBtn.classList.remove("btn--loading");
+        visualizeBtn.textContent = "✨ Visualize This Look";
       }
     });
   }

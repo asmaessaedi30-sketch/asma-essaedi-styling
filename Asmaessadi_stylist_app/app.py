@@ -769,7 +769,8 @@ You MUST respond with a valid JSON object with EXACTLY two keys:
             app.logger.exception("Generative styling failed.")
             return jsonify({"error": f"AI Generation failed: {exc}"}), 500
 
-    return jsonify({"outfit": outfit, "note": note, "generated_at": datetime.utcnow().isoformat()})
+    item_ids = [i["id"] for i in outfit.values() if i]
+    return jsonify({"outfit": outfit, "item_ids": item_ids, "note": note, "generated_at": datetime.utcnow().isoformat()})
 
 
 @app.route("/api/preview-look", methods=["POST"])
@@ -787,8 +788,6 @@ def preview_look():
         }), 500
 
     user = current_user()
-    if user["tier"] != "pro":
-        return jsonify({"error": "AI Event Styling is a Pro feature. Upgrade to continue!"}), 403
     item_ids = request.form.getlist("item_ids")
     occasion = request.form.get("occasion", PREVIEW_OCCASIONS[0]).strip()
     style_vibe = request.form.get("style_vibe", STYLE_VIBES[0]).strip()
