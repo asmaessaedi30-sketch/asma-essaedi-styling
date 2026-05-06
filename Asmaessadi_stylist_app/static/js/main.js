@@ -28,6 +28,18 @@ document.addEventListener("DOMContentLoaded", () => {
   let currentGeneratedIds = [];
   let tryOnTimeoutId = null;
 
+  async function readJsonResponse(response) {
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      return response.json();
+    }
+
+    const text = await response.text();
+    return {
+      error: text.trim() || `Server returned ${response.status} ${response.statusText}`.trim(),
+    };
+  }
+
   if (generateBtn) {
     generateBtn.addEventListener("click", async () => {
       generateBtn.classList.add("btn--loading");
@@ -45,7 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
           method: "POST", 
           body: formData 
         });
-        const data = await res.json();
+        const data = await readJsonResponse(res);
 
         if (!res.ok || data.error) {
           showOutfitError(data.error || "Something went wrong. Try again.");
@@ -91,17 +103,22 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         
         const res = await fetch(window.APP.previewUrl, { method: "POST", body: formData });
-        const data = await res.json();
+        const data = await readJsonResponse(res);
         
         if (!res.ok || data.error) {
           visualizeResult.innerHTML = `<p style="color:var(--danger)">Error: ${data.error || 'Failed to synthesize'}</p>`;
         } else {
+          const imageUrl = data.image_data_url || data.image_url;
+          if (!imageUrl) {
+            visualizeResult.innerHTML = `<p style="color:var(--danger)">Error: Preview completed but no image was returned.</p>`;
+            return;
+          }
           visualizeResult.innerHTML = `
-            <img src="${data.image_url}" alt="Visualized look" style="width:100%; max-width:400px; border-radius:12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-top:20px;" />
+            <img src="${imageUrl}" alt="Visualized look" style="width:100%; max-width:400px; border-radius:12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-top:20px;" />
           `;
         }
       } catch (err) {
-        visualizeResult.innerHTML = `<p style="color:var(--danger)">Network error.</p>`;
+        visualizeResult.innerHTML = `<p style="color:var(--danger)">Network error while creating the preview.</p>`;
       } finally {
         visualizeBtn.classList.remove("btn--loading");
         visualizeBtn.textContent = "✨ Visualize This Look";
@@ -258,7 +275,7 @@ document.addEventListener("DOMContentLoaded", () => {
         method: "POST",
         body: formData,
       });
-      const data = await response.json();
+      const data = await readJsonResponse(response);
 
       if (!response.ok || data.error) {
         showTryOnError(data.error || "Something went wrong creating the preview.");

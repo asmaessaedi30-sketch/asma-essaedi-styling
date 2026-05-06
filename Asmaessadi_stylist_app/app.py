@@ -16,6 +16,10 @@ import sqlite3
 import json
 import csv
 import io
+import mimetypes
+import smtplib
+import ssl
+from email.message import EmailMessage
 from functools import wraps
 from datetime import datetime
 
@@ -90,6 +94,12 @@ UPLOAD_FOLDER = (
 )
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 MAX_CONTENT_LENGTH = 8 * 1024 * 1024  # 8 MB
+IMAGE_MIME_TYPES = {
+    "png": "image/png",
+    "jpg": "image/jpeg",
+    "jpeg": "image/jpeg",
+    "webp": "image/webp",
+}
 
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_LENGTH
@@ -225,6 +235,23 @@ def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def mime_type_for_image(filename):
+    """Return a supported image MIME type for an uploaded wardrobe file."""
+    ext = filename.rsplit(".", 1)[1].lower() if "." in filename else ""
+    return IMAGE_MIME_TYPES.get(ext) or mimetypes.guess_type(filename)[0] or "application/octet-stream"
+
+
+def wardrobe_item_payload(row):
+    """Convert a wardrobe DB row into JSON-safe data for API responses."""
+    item = dict(row)
+    created_at = item.get("created_at")
+    if isinstance(created_at, datetime):
+        item["created_at"] = created_at.isoformat()
+    elif created_at is not None:
+        item["created_at"] = str(created_at)
+    return item
+
+
 def current_user():
     """Fetch the logged-in user row, or None."""
     if "user_id" not in session:
@@ -249,6 +276,60 @@ def verify_reset_token(token, max_age=3600):
         return reset_token_serializer().loads(token, max_age=max_age)
     except (BadSignature, SignatureExpired):
         return None
+
+
+def email_is_ready():
+    """Return True when SMTP settings are configured."""
+    required = ("SMTP_HOST", "SMTP_USERNAME", "SMTP_PASSWORD", "MAIL_FROM")
+    return all(os.environ.get(name) for name in required)
+
+
+def send_email(to_email, subject, body):
+    """Send a plain-text email using SMTP settings from the environment."""
+    if not email_is_ready():
+        raise RuntimeError("Email is not configured. Set SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD, and MAIL_FROM.")
+
+    smtp_host = os.environ["SMTP_HOST"]
+    smtp_port = int(os.environ.get("SMTP_PORT", "587"))
+    use_ssl = os.environ.get("SMTP_USE_SSL", "").lower() in {"1", "true", "yes"}
+    username = os.environ["SMTP_USERNAME"]
+    password = os.environ["SMTP_PASSWORD"]
+    mail_from = os.environ["MAIL_FROM"]
+    mail_from_name = os.environ.get("MAIL_FROM_NAME", "Asma Essaedi")
+
+    message = EmailMessage()
+    message["Subject"] = subject
+    message["From"] = f"{mail_from_name} <{mail_from}>"
+    message["To"] = to_email
+    message.set_content(body)
+
+    if use_ssl:
+        context = ssl.create_default_context()
+        with smtplib.SMTP_SSL(smtp_host, smtp_port, context=context) as smtp:
+            smtp.login(username, password)
+            smtp.send_message(message)
+        return
+
+    with smtplib.SMTP(smtp_host, smtp_port) as smtp:
+        smtp.starttls(context=ssl.create_default_context())
+        smtp.login(username, password)
+        smtp.send_message(message)
+
+
+def send_password_reset_email(to_email, reset_link):
+    """Email a password reset link to a user."""
+    body = f"""Hi,
+
+We received a request to reset your Asma Essaedi password.
+
+Use this link to choose a new password:
+{reset_link}
+
+This link expires in 1 hour. If you did not request a password reset, you can ignore this email.
+
+Asma Essaedi
+"""
+    send_email(to_email, "Reset your Asma Essaedi password", body)
 
 
 def stripe_is_ready():
@@ -491,8 +572,6 @@ def logout():
 @app.route("/forgot-password", methods=["GET", "POST"])
 def forgot_password():
     """Let a user request a password reset link."""
-    reset_link = None
-
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
         db = get_db()
@@ -501,11 +580,17 @@ def forgot_password():
         if user:
             token = build_reset_token(email)
             reset_link = f"{app_base_url()}{url_for('reset_password', token=token)}"
-            flash("Password reset link generated below. Open it to set a new password.", "success")
-        else:
-            flash("We couldn't find an account with that email.", "error")
+            try:
+                send_password_reset_email(email, reset_link)
+            except Exception:
+                app.logger.exception("Password reset email failed.")
+                flash("We could not send the reset email right now. Please try again later.", "error")
+                return redirect(url_for("forgot_password"))
 
-    return render_template("forgot_password.html", reset_link=reset_link)
+        flash("If an account exists for that email, a password reset link has been sent.", "success")
+        return redirect(url_for("login"))
+
+    return render_template("forgot_password.html")
 
 
 @app.route("/reset-password/<token>", methods=["GET", "POST"])
@@ -714,7 +799,7 @@ def generate_outfit():
         "SELECT id, category, name, color, image_path FROM wardrobe_items WHERE user_id = ?",
         (user["id"],)
     ).fetchall()
-    items = [dict(row) for row in rows]
+    items = [wardrobe_item_payload(row) for row in rows]
     
     if not items:
         return jsonify({"error": "Your wardrobe is empty. Add some items first!"}), 400
@@ -820,7 +905,7 @@ def preview_look():
         (user["id"], *item_ids)
     ).fetchall()
 
-    items = [dict(row) for row in rows]
+    items = [wardrobe_item_payload(row) for row in rows]
     if len(items) != len(item_ids):
         return jsonify({"error": "One or more selected items could not be found."}), 404
 
@@ -856,16 +941,20 @@ def preview_look():
         if not os.path.exists(image_path):
             return jsonify({"error": f"Missing image for {item['name']}."}), 500
         with open(image_path, "rb") as image_file:
-            image_files.append((item["image_path"], image_file.read(), "image/jpeg"))
+            filename = secure_filename(item["image_path"])
+            image_files.append((filename, image_file.read(), mime_type_for_image(filename)))
 
     try:
         result = client.images.edit(
             model=os.environ.get("OPENAI_IMAGE_MODEL", "gpt-image-1.5"),
-            image=[(name, content, mime_type) for name, content, mime_type in image_files],
+            image=image_files,
             prompt=prompt,
+            response_format="b64_json",
             size="1024x1536",
         )
         image_b64 = result.data[0].b64_json
+        if not image_b64:
+            return jsonify({"error": "OpenAI returned a preview without image data. Try again."}), 502
     except Exception as exc:
         app.logger.exception("OpenAI try-on preview failed.")
         return jsonify({"error": f"Unable to create AI preview: {exc}"}), 500
@@ -875,6 +964,7 @@ def preview_look():
 
     return jsonify({
         "image_data_url": f"data:image/png;base64,{image_b64}",
+        "image_url": f"data:image/png;base64,{image_b64}",
         "selected_items": items,
         "occasion": occasion,
         "style_vibe": style_vibe,

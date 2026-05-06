@@ -88,6 +88,19 @@ export STRIPE_WEBHOOK_SECRET="whsec_..."
 export APP_BASE_URL="http://127.0.0.1:5000"
 ```
 
+### Password Reset Email Setup
+
+Forgot-password links are sent by email through SMTP. For local development, use your email provider's SMTP settings or a testing inbox such as Mailtrap.
+
+```bash
+export SMTP_HOST="smtp.example.com"
+export SMTP_PORT="587"
+export SMTP_USERNAME="your-smtp-username"
+export SMTP_PASSWORD="your-smtp-password"
+export MAIL_FROM="no-reply@example.com"
+export MAIL_FROM_NAME="Asma Essaedi"
+```
+
 Use the Stripe CLI to forward webhook events locally:
 
 ```bash
@@ -108,6 +121,13 @@ Copy the webhook signing secret from the Stripe CLI output into `STRIPE_WEBHOOK_
 | `STRIPE_PRICE_ID`   | Stripe recurring monthly price ID    |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret   |
 | `APP_BASE_URL`      | Public base URL for Stripe redirects |
+| `SMTP_HOST`         | SMTP server for password reset emails |
+| `SMTP_PORT`         | SMTP port, defaults to `587` |
+| `SMTP_USERNAME`     | SMTP username |
+| `SMTP_PASSWORD`     | SMTP password |
+| `SMTP_USE_SSL`      | Set to `true` for SMTP SSL, optional |
+| `MAIL_FROM`         | Sender email address |
+| `MAIL_FROM_NAME`    | Sender display name, optional |
 
 ---
 
@@ -128,6 +148,10 @@ In Render, set these environment variables:
 - `STRIPE_SECRET_KEY=...`
 - `STRIPE_PRICE_ID=...`
 - `STRIPE_WEBHOOK_SECRET=...`
+- `SMTP_HOST=...`
+- `SMTP_USERNAME=...`
+- `SMTP_PASSWORD=...`
+- `MAIL_FROM=...`
 
 Do not upload or commit `.env` to GitHub. Set secrets in the Render dashboard instead.
 
