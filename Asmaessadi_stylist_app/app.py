@@ -24,6 +24,10 @@ from functools import wraps
 from datetime import datetime
 
 try:
+    import certifi
+except ModuleNotFoundError:
+    certifi = None
+try:
     from openai import OpenAI
 except ModuleNotFoundError:
     OpenAI = None
@@ -331,16 +335,16 @@ def send_email(to_email, subject, body):
     message["From"] = f"{settings['mail_from_name']} <{settings['mail_from']}>"
     message["To"] = to_email
     message.set_content(body)
+    tls_context = ssl.create_default_context(cafile=certifi.where() if certifi else None)
 
     if settings["use_ssl"]:
-        context = ssl.create_default_context()
-        with smtplib.SMTP_SSL(settings["smtp_host"], settings["smtp_port"], context=context) as smtp:
+        with smtplib.SMTP_SSL(settings["smtp_host"], settings["smtp_port"], context=tls_context) as smtp:
             smtp.login(settings["username"], settings["password"])
             smtp.send_message(message)
         return
 
     with smtplib.SMTP(settings["smtp_host"], settings["smtp_port"]) as smtp:
-        smtp.starttls(context=ssl.create_default_context())
+        smtp.starttls(context=tls_context)
         smtp.login(settings["username"], settings["password"])
         smtp.send_message(message)
 
