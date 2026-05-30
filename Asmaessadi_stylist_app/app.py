@@ -984,11 +984,16 @@ def preview_look():
             model=os.environ.get("OPENAI_IMAGE_MODEL", "gpt-image-1.5"),
             image=image_files,
             prompt=prompt,
-            response_format="b64_json",
             size="1024x1536",
         )
-        image_b64 = result.data[0].b64_json
-        if not image_b64:
+        image_result = result.data[0]
+        image_b64 = getattr(image_result, "b64_json", None)
+        image_url = getattr(image_result, "url", None)
+        if image_b64:
+            image_src = f"data:image/png;base64,{image_b64}"
+        elif image_url:
+            image_src = image_url
+        else:
             return jsonify({"error": "OpenAI returned a preview without image data. Try again."}), 502
     except Exception as exc:
         app.logger.exception("OpenAI try-on preview failed.")
@@ -998,8 +1003,8 @@ def preview_look():
     save_look_preview(user["id"], occasion, style_vibe, styling_goal, notes, items)
 
     return jsonify({
-        "image_data_url": f"data:image/png;base64,{image_b64}",
-        "image_url": f"data:image/png;base64,{image_b64}",
+        "image_data_url": image_src,
+        "image_url": image_src,
         "selected_items": items,
         "occasion": occasion,
         "style_vibe": style_vibe,
