@@ -33,3 +33,7 @@ services:
         sync: false
       - key: MAIL_FROM_NAME
         value: Asma Essaedi
+      - key: GMAIL_ADDRESS
+        sync: false
+      - key: GMAIL_APP_PASSWORD
+        sync: false

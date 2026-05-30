@@ -278,41 +278,70 @@ def verify_reset_token(token, max_age=3600):
         return None
 
 
+def smtp_settings():
+    """Return SMTP settings, with Gmail app-password aliases supported."""
+    username = os.environ.get("SMTP_USERNAME") or os.environ.get("GMAIL_ADDRESS")
+    password = os.environ.get("SMTP_PASSWORD") or os.environ.get("GMAIL_APP_PASSWORD")
+    mail_from = os.environ.get("MAIL_FROM") or username
+    use_ssl = os.environ.get("SMTP_USE_SSL", "").lower() in {"1", "true", "yes"}
+    smtp_host = os.environ.get("SMTP_HOST")
+
+    if not smtp_host and username and username.endswith("@gmail.com"):
+        smtp_host = "smtp.gmail.com"
+
+    default_port = "465" if use_ssl else "587"
+    smtp_port = int(os.environ.get("SMTP_PORT", default_port))
+
+    missing = []
+    if not smtp_host:
+        missing.append("SMTP_HOST")
+    if not username:
+        missing.append("SMTP_USERNAME or GMAIL_ADDRESS")
+    if not password:
+        missing.append("SMTP_PASSWORD or GMAIL_APP_PASSWORD")
+    if not mail_from:
+        missing.append("MAIL_FROM")
+
+    return {
+        "smtp_host": smtp_host,
+        "smtp_port": smtp_port,
+        "use_ssl": use_ssl,
+        "username": username,
+        "password": password,
+        "mail_from": mail_from,
+        "mail_from_name": os.environ.get("MAIL_FROM_NAME", "Asma Essaedi"),
+        "missing": missing,
+    }
+
+
 def email_is_ready():
     """Return True when SMTP settings are configured."""
-    required = ("SMTP_HOST", "SMTP_USERNAME", "SMTP_PASSWORD", "MAIL_FROM")
-    return all(os.environ.get(name) for name in required)
+    return not smtp_settings()["missing"]
 
 
 def send_email(to_email, subject, body):
     """Send a plain-text email using SMTP settings from the environment."""
-    if not email_is_ready():
-        raise RuntimeError("Email is not configured. Set SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD, and MAIL_FROM.")
-
-    smtp_host = os.environ["SMTP_HOST"]
-    smtp_port = int(os.environ.get("SMTP_PORT", "587"))
-    use_ssl = os.environ.get("SMTP_USE_SSL", "").lower() in {"1", "true", "yes"}
-    username = os.environ["SMTP_USERNAME"]
-    password = os.environ["SMTP_PASSWORD"]
-    mail_from = os.environ["MAIL_FROM"]
-    mail_from_name = os.environ.get("MAIL_FROM_NAME", "Asma Essaedi")
+    settings = smtp_settings()
+    if settings["missing"]:
+        missing = ", ".join(settings["missing"])
+        raise RuntimeError(f"Email is not configured. Missing: {missing}")
 
     message = EmailMessage()
     message["Subject"] = subject
-    message["From"] = f"{mail_from_name} <{mail_from}>"
+    message["From"] = f"{settings['mail_from_name']} <{settings['mail_from']}>"
     message["To"] = to_email
     message.set_content(body)
 
-    if use_ssl:
+    if settings["use_ssl"]:
         context = ssl.create_default_context()
-        with smtplib.SMTP_SSL(smtp_host, smtp_port, context=context) as smtp:
-            smtp.login(username, password)
+        with smtplib.SMTP_SSL(settings["smtp_host"], settings["smtp_port"], context=context) as smtp:
+            smtp.login(settings["username"], settings["password"])
             smtp.send_message(message)
         return
 
-    with smtplib.SMTP(smtp_host, smtp_port) as smtp:
+    with smtplib.SMTP(settings["smtp_host"], settings["smtp_port"]) as smtp:
         smtp.starttls(context=ssl.create_default_context())
-        smtp.login(username, password)
+        smtp.login(settings["username"], settings["password"])
         smtp.send_message(message)
 
 
@@ -444,7 +473,7 @@ def save_look_preview(user_id, occasion, style_vibe, styling_goal, notes, items)
         INSERT INTO look_previews (user_id, occasion, style_vibe, styling_goal, notes, items_json)
         VALUES (?, ?, ?, ?, ?, ?)
         """,
-        (user_id, occasion, style_vibe, styling_goal, "\n".join(notes), json.dumps(items))
+        (user_id, occasion, style_vibe, styling_goal, "\n".join(notes), json.dumps(items, default=str))
     )
     db.commit()
 

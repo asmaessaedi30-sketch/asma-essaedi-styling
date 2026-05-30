@@ -90,14 +90,30 @@ export APP_BASE_URL="http://127.0.0.1:5000"
 
 ### Password Reset Email Setup
 
-Forgot-password links are sent by email through SMTP. For local development, use your email provider's SMTP settings or a testing inbox such as Mailtrap.
+Forgot-password links are sent by email through SMTP. For Gmail, use a Google App Password rather than your normal Gmail password.
+
+1. In your Google account, turn on 2-Step Verification.
+2. Go to **Google Account > Security > App passwords**.
+3. Create an app password for this Flask app.
+4. Put the app password in `.env` locally or in your Render environment variables.
+
+Local `.env` example for Gmail:
 
 ```bash
-export SMTP_HOST="smtp.example.com"
+APP_BASE_URL="http://127.0.0.1:5000"
+GMAIL_ADDRESS="youraddress@gmail.com"
+GMAIL_APP_PASSWORD="your-16-character-google-app-password"
+MAIL_FROM_NAME="Asma Essaedi"
+```
+
+The app automatically uses `smtp.gmail.com:587` when `GMAIL_ADDRESS` ends with `@gmail.com`. You can also use the generic SMTP variables below for Gmail or another provider:
+
+```bash
+export SMTP_HOST="smtp.gmail.com"
 export SMTP_PORT="587"
-export SMTP_USERNAME="your-smtp-username"
-export SMTP_PASSWORD="your-smtp-password"
-export MAIL_FROM="no-reply@example.com"
+export SMTP_USERNAME="youraddress@gmail.com"
+export SMTP_PASSWORD="your-16-character-google-app-password"
+export MAIL_FROM="youraddress@gmail.com"
 export MAIL_FROM_NAME="Asma Essaedi"
 ```
 
@@ -128,6 +144,8 @@ Copy the webhook signing secret from the Stripe CLI output into `STRIPE_WEBHOOK_
 | `SMTP_USE_SSL`      | Set to `true` for SMTP SSL, optional |
 | `MAIL_FROM`         | Sender email address |
 | `MAIL_FROM_NAME`    | Sender display name, optional |
+| `GMAIL_ADDRESS`     | Gmail sender address, alternative to `SMTP_USERNAME` |
+| `GMAIL_APP_PASSWORD`| Gmail app password, alternative to `SMTP_PASSWORD` |
 
 ---
 
@@ -152,6 +170,7 @@ In Render, set these environment variables:
 - `SMTP_USERNAME=...`
 - `SMTP_PASSWORD=...`
 - `MAIL_FROM=...`
+- Or use `GMAIL_ADDRESS=...` and `GMAIL_APP_PASSWORD=...` for Gmail
 
 Do not upload or commit `.env` to GitHub. Set secrets in the Render dashboard instead.
 
