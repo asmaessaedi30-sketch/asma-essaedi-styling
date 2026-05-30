@@ -3,7 +3,7 @@ services:
     name: asma-essaedi-styling
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    startCommand: gunicorn --workers 1 --threads 1 --timeout 120 --max-requests 100 --max-requests-jitter 20 app:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.13.5
@@ -11,6 +11,8 @@ services:
         generateValue: true
       - key: DATA_DIR
         value: /var/data
+      - key: WEB_CONCURRENCY
+        value: 1
       - key: APP_BASE_URL
         sync: false
       - key: OPENAI_API_KEY
