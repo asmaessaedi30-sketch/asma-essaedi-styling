@@ -643,7 +643,9 @@ def forgot_password():
             token = build_reset_token(email)
             reset_link = f"{app_base_url()}{url_for('reset_password', token=token)}"
             try:
+                app.logger.info("Password reset email send started. base_url=%s", app_base_url())
                 send_password_reset_email(email, reset_link)
+                app.logger.info("Password reset email sent successfully.")
             except Exception:
                 app.logger.exception("Password reset email failed.")
                 flash("We could not send the reset email right now. Please try again later.", "error")
