@@ -35,6 +35,11 @@ try:
     import stripe
 except ModuleNotFoundError:
     stripe = None
+try:
+    from PIL import Image, ImageOps
+except ModuleNotFoundError:
+    Image = None
+    ImageOps = None
 from flask import (
     Flask, render_template, request, redirect,
     url_for, session, jsonify, g, flash, send_from_directory,
@@ -243,6 +248,30 @@ def mime_type_for_image(filename):
     """Return a supported image MIME type for an uploaded wardrobe file."""
     ext = filename.rsplit(".", 1)[1].lower() if "." in filename else ""
     return IMAGE_MIME_TYPES.get(ext) or mimetypes.guess_type(filename)[0] or "application/octet-stream"
+
+
+def optimized_image_reference(image_path, filename):
+    """Return a compact image tuple for OpenAI image previews."""
+    safe_name = secure_filename(filename)
+    if Image is None:
+        with open(image_path, "rb") as image_file:
+            return safe_name, image_file.read(), mime_type_for_image(safe_name)
+
+    with Image.open(image_path) as source:
+        image = ImageOps.exif_transpose(source)
+        if image.mode in {"RGBA", "LA"}:
+            background = Image.new("RGB", image.size, "white")
+            background.paste(image, mask=image.getchannel("A"))
+            image = background
+        else:
+            image = image.convert("RGB")
+
+        image.thumbnail((1400, 1400), Image.Resampling.LANCZOS)
+        output = io.BytesIO()
+        image.save(output, format="JPEG", quality=82, optimize=True)
+
+    root = os.path.splitext(safe_name)[0] or "wardrobe-item"
+    return f"{root}.jpg", output.getvalue(), "image/jpeg"
 
 
 def wardrobe_item_payload(row):
@@ -975,16 +1004,14 @@ def preview_look():
         image_path = os.path.join(app.config["UPLOAD_FOLDER"], item["image_path"])
         if not os.path.exists(image_path):
             return jsonify({"error": f"Missing image for {item['name']}."}), 500
-        with open(image_path, "rb") as image_file:
-            filename = secure_filename(item["image_path"])
-            image_files.append((filename, image_file.read(), mime_type_for_image(filename)))
+        image_files.append(optimized_image_reference(image_path, item["image_path"]))
 
     try:
         result = client.images.edit(
             model=os.environ.get("OPENAI_IMAGE_MODEL", "gpt-image-1.5"),
             image=image_files,
             prompt=prompt,
-            size="1024x1536",
+            size=os.environ.get("OPENAI_IMAGE_SIZE", "1024x1024"),
         )
         image_result = result.data[0]
         image_b64 = getattr(image_result, "b64_json", None)

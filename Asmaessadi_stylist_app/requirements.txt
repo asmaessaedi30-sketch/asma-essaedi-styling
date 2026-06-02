@@ -4,3 +4,4 @@ gunicorn>=23,<24
 openai>=1.0.0
 stripe>=12,<13
 certifi>=2025.1.31
+Pillow>=11,<12
