@@ -1256,6 +1256,44 @@ def stripe_webhook():
 
 
 # ---------------------------------------------------------------------------
+# Diagnostics & Error Logging
+# ---------------------------------------------------------------------------
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Log any unhandled exception to a local file for diagnosis."""
+    import traceback
+    error_log_path = os.path.join(DATA_DIR, "last_error.log")
+    try:
+        with open(error_log_path, "w") as f:
+            f.write(f"Exception Type: {type(e).__name__}\n")
+            f.write(f"Exception Message: {str(e)}\n\n")
+            traceback.print_exc(file=f)
+    except Exception as log_err:
+        app.logger.error(f"Failed to write to error log: {log_err}")
+    
+    return jsonify({
+        "error": "Internal Server Error",
+        "details": str(e)
+    }), 500
+
+
+@app.route("/api/view-error")
+def view_last_error():
+    """Diagnostic route to view the last server error."""
+    if request.args.get("secret") != "asma-debug":
+        return "Unauthorized", 401
+    
+    error_log_path = os.path.join(DATA_DIR, "last_error.log")
+    if not os.path.exists(error_log_path):
+        return "No errors logged yet."
+        
+    with open(error_log_path, "r") as f:
+        content = f.read()
+    return content, 200, {"Content-Type": "text/plain"}
+
+
+# ---------------------------------------------------------------------------
 # Entry Point
 # ---------------------------------------------------------------------------
 
