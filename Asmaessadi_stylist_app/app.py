@@ -353,7 +353,36 @@ def email_is_ready():
 
 
 def send_email(to_email, subject, body):
-    """Send a plain-text email using SMTP settings from the environment."""
+    """Send a plain-text email using Resend API (HTTPS) if configured, otherwise fallback to SMTP."""
+    resend_api_key = os.environ.get("RESEND_API_KEY")
+    if resend_api_key:
+        import requests
+        from_email = os.environ.get("RESEND_FROM_EMAIL") or os.environ.get("MAIL_FROM") or "onboarding@resend.dev"
+        from_name = os.environ.get("MAIL_FROM_NAME") or "Asma Essaedi"
+        try:
+            app.logger.info("Sending email via Resend API to %s", to_email)
+            res = requests.post(
+                "https://api.resend.com/emails",
+                headers={
+                    "Authorization": f"Bearer {resend_api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "from": f"{from_name} <{from_email}>" if from_name else from_email,
+                    "to": to_email,
+                    "subject": subject,
+                    "text": body,
+                },
+                timeout=10
+            )
+            res.raise_for_status()
+            app.logger.info("Email sent successfully via Resend API.")
+            return
+        except Exception as e:
+            app.logger.exception("Failed to send email via Resend API: %s", e)
+            raise
+
+    # Fallback to SMTP
     settings = smtp_settings()
     if settings["missing"]:
         missing = ", ".join(settings["missing"])
