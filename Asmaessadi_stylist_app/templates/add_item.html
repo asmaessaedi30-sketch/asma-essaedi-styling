@@ -48,6 +48,57 @@
       </label>
 
       <div class="upload-fields">
+        <style>
+          .ai-status-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 1rem;
+            border-radius: var(--radius-lg);
+            background: rgba(79, 70, 229, 0.08);
+            border: 1px solid rgba(79, 70, 229, 0.3);
+            color: var(--accent);
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+          }
+          .ai-status-bar--success {
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: var(--success);
+          }
+          .ai-status-bar--error {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: var(--danger);
+          }
+          .spinner {
+            animation: rotate 2s linear infinite;
+            stroke: currentColor;
+            flex-shrink: 0;
+          }
+          .form-input {
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+          }
+          .form-input--highlight {
+            border-color: var(--success) !important;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15) !important;
+          }
+          @keyframes rotate {
+            100% {
+              transform: rotate(360deg);
+            }
+          }
+        </style>
+
+        <div id="aiStatus" class="ai-status-bar" style="display: none;">
+          <svg id="aiSpinner" class="spinner" width="18" height="18" viewBox="0 0 50 50">
+            <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="5" stroke-dasharray="80" stroke-dashoffset="0"></circle>
+          </svg>
+          <span id="aiStatusText">✨ AI is analyzing your garment...</span>
+        </div>
+
         <div class="form-group">
           <label for="name" class="form-label">Item name</label>
           <input id="name" name="name" type="text" class="form-input" placeholder="Black blazer" required />
@@ -97,7 +148,86 @@
       preview.hidden = false;
     }
 
-    input.addEventListener("change", () => updatePreview(input.files?.[0]));
+    async function runAiAnalysis(file) {
+      if (!file) return;
+
+      const aiStatus = document.getElementById("aiStatus");
+      const nameInput = document.getElementById("name");
+      const catInput = document.getElementById("category");
+      const colorInput = document.getElementById("color");
+      const submitBtn = document.querySelector("button[type='submit']");
+      const statusText = document.getElementById("aiStatusText");
+      const spinner = document.getElementById("aiSpinner");
+
+      // Show loader
+      aiStatus.style.display = "flex";
+      aiStatus.className = "ai-status-bar"; // reset classes
+      statusText.innerHTML = "✨ AI is analyzing your garment...";
+      spinner.style.display = "block";
+
+      // Disable inputs during analysis
+      nameInput.disabled = true;
+      catInput.disabled = true;
+      colorInput.disabled = true;
+      submitBtn.disabled = true;
+
+      const formData = new FormData();
+      formData.append("image", file);
+
+      try {
+        const res = await fetch("/api/analyze-image", {
+          method: "POST",
+          body: formData
+        });
+        
+        if (!res.ok) {
+          throw new Error("Analysis failed");
+        }
+
+        const data = await res.json();
+        
+        if (data.error) {
+          throw new Error(data.error);
+        }
+
+        // Fill inputs
+        nameInput.value = data.name || "";
+        catInput.value = data.category || "";
+        colorInput.value = data.color || "";
+
+        // Success state
+        aiStatus.classList.add("ai-status-bar--success");
+        statusText.innerHTML = "✨ AI successfully auto-filled garment details!";
+        spinner.style.display = "none";
+
+        // Highlight fields
+        [nameInput, catInput, colorInput].forEach(el => {
+          el.classList.add("form-input--highlight");
+          setTimeout(() => el.classList.remove("form-input--highlight"), 2500);
+        });
+
+      } catch (err) {
+        console.error(err);
+        aiStatus.classList.add("ai-status-bar--error");
+        statusText.innerHTML = "⚠️ AI could not auto-fill. Please enter details manually.";
+        spinner.style.display = "none";
+      } finally {
+        // Re-enable inputs
+        nameInput.disabled = false;
+        catInput.disabled = false;
+        colorInput.disabled = false;
+        submitBtn.disabled = false;
+      }
+    }
+
+    input.addEventListener("change", () => {
+      const file = input.files?.[0];
+      updatePreview(file);
+      if (file) {
+        runAiAnalysis(file);
+      }
+    });
+
     ["dragenter", "dragover"].forEach(eventName => {
       dropZone.addEventListener(eventName, event => {
         event.preventDefault();

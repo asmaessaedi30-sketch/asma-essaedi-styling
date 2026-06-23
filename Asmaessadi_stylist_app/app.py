@@ -1129,6 +1129,85 @@ Return ONLY valid HTML elements inside a single div wrapper, no markdown wrapper
         return jsonify({"error": f"Failed to analyze closet: {exc}"}), 500
 
 
+@app.route("/api/analyze-image", methods=["POST"])
+@login_required
+def analyze_image():
+    """Analyze an uploaded wardrobe image using GPT-4o Vision and return suggested name, category, and color."""
+    if "image" not in request.files:
+        return jsonify({"error": "No image file provided."}), 400
+        
+    file = request.files["image"]
+    if not file or not allowed_file(file.filename):
+        return jsonify({"error": "Invalid image file type."}), 400
+
+    client = openai_client()
+    if not client:
+        return jsonify({"error": "OpenAI not configured."}), 503
+
+    try:
+        import base64
+        file_bytes = file.read()
+        file.seek(0)
+        
+        # Downscale image to 512x512 to save tokens and speed up API call
+        if Image:
+            try:
+                img_io = io.BytesIO(file_bytes)
+                with Image.open(img_io) as img:
+                    img.thumbnail((512, 512))
+                    out_io = io.BytesIO()
+                    img.save(out_io, format="JPEG", quality=80)
+                    base64_image = base64.b64encode(out_io.getvalue()).decode("utf-8")
+            except Exception as resize_err:
+                app.logger.warning(f"Failed to resize image for vision analysis: {resize_err}")
+                base64_image = base64.b64encode(file_bytes).decode("utf-8")
+        else:
+            base64_image = base64.b64encode(file_bytes).decode("utf-8")
+
+        prompt = (
+            "You are an expert fashion stylist. Analyze the uploaded garment image.\n"
+            "Determine:\n"
+            "1. A clean, descriptive name for the item (e.g., 'Black blazer', 'White linen shirt', 'Red sneakers'). Keep it short (2-4 words).\n"
+            "2. The best category from: tops, bottoms, shoes, outerwear, accessories.\n"
+            "3. The primary color of the item (e.g., 'black', 'white', 'cream', 'navy').\n\n"
+            "Respond ONLY with a JSON object containing the keys \"name\", \"category\", and \"color\". Example response:\n"
+            '{"name": "Black leather boots", "category": "shoes", "color": "black"}\n'
+            "Do not include any markdown formatting, backticks, or explanation. Just return the raw JSON object."
+        )
+
+        response = client.chat.completions.create(
+            model=os.environ.get("OPENAI_LANGUAGE_MODEL", "gpt-4o"),
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{base64_image}"
+                            }
+                        }
+                    ]
+                }
+            ],
+            max_tokens=150,
+            response_format={"type": "json_object"}
+        )
+        
+        content = response.choices[0].message.content.strip()
+        data = json.loads(content)
+        
+        category = data.get("category", "").lower()
+        if category not in CATEGORIES:
+            data["category"] = ""
+            
+        return jsonify(data)
+    except Exception as exc:
+        app.logger.exception("AI image analysis failed.")
+        return jsonify({"error": f"Failed to analyze image: {exc}"}), 500
+
+
 @app.route("/api/upgrade-intent", methods=["POST"])
 @login_required
 def upgrade_intent():
