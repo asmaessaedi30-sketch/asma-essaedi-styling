@@ -577,6 +577,19 @@ def index():
     return render_template("index.html")
 
 
+def validate_password_strength(password):
+    """Validate that the password has at least 8 characters, a number, and a punctuation mark."""
+    import string
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters long."
+    if not any(char.isdigit() for char in password):
+        return False, "Password must contain at least one number."
+    punctuation_set = set(string.punctuation)
+    if not any(char in punctuation_set for char in password):
+        return False, "Password must contain at least one punctuation mark (e.g. !, @, #, $, etc.)."
+    return True, ""
+
+
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
     """Create a new user account."""
@@ -587,6 +600,11 @@ def signup():
 
         if not all([name, email, password]):
             flash("All fields are required.", "error")
+            return redirect(url_for("signup"))
+
+        is_valid, msg = validate_password_strength(password)
+        if not is_valid:
+            flash(msg, "error")
             return redirect(url_for("signup"))
 
         db = get_db()
@@ -700,8 +718,9 @@ def reset_password(token):
         password = request.form.get("password", "")
         confirm_password = request.form.get("confirm_password", "")
 
-        if len(password) < 8:
-            flash("Use at least 8 characters for your new password.", "error")
+        is_valid, msg = validate_password_strength(password)
+        if not is_valid:
+            flash(msg, "error")
             return redirect(url_for("reset_password", token=token))
 
         if password != confirm_password:
