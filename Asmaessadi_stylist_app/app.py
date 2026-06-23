@@ -14,7 +14,6 @@ import os
 import random
 import sqlite3
 import json
-import csv
 import io
 import mimetypes
 import smtplib
@@ -883,35 +882,9 @@ def delete_item(item_id):
     return jsonify({"success": True})
 
 
-@app.route("/api/export-wardrobe", methods=["GET"])
-@login_required
-def export_wardrobe():
-    """Export all wardrobe items to a CSV file (Pro feature)."""
-    user = current_user()
-    if user["tier"] != "pro":
-        flash("Exporting data is a Pro feature. Upgrade to continue!", "error")
-        return redirect(url_for("dashboard"))
-
-    db = get_db()
-    items = db.execute(
-        "SELECT name, category, color, created_at FROM wardrobe_items WHERE user_id = ? ORDER BY created_at DESC", 
-        (user["id"],)
-    ).fetchall()
-    
-    si = io.StringIO()
-    cw = csv.writer(si)
-    cw.writerow(["Name", "Category", "Color", "Date Added"])
-    for item in items:
-        cw.writerow([item["name"], item["category"], item["color"], item["created_at"]])
-        
-    output = make_response(si.getvalue())
-    output.headers["Content-Disposition"] = f"attachment; filename=stylist_wardrobe_{user['id']}.csv"
-    output.headers["Content-type"] = "text/csv"
-    return output
-
 # ---------------------------------------------------------------------------
 # Routes — AI Stylist (Core Feature)
-# ---------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
 
 @app.route("/api/generate-outfit", methods=["POST"])
 @login_required

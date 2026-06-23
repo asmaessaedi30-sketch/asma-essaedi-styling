@@ -46,9 +46,6 @@
       <a href="{{ url_for('add_item') }}" class="btn btn--primary"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><path d="M12 5v14M5 12h14"/></svg> Add Item</a>
       <button class="btn btn--outline" onclick="window.scrollTo(0, document.querySelector('.outfit-section').offsetTop)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><path d="M12 2l3 6 6 1-4 4 1 6-6-3-6 3 1-6-4-4 6-1z"/></svg> Style Me AI</button>
       <button class="btn btn--outline" onclick="window.scrollTo(0, document.querySelector('.analyst-section').offsetTop)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Analyst</button>
-      <form action="{{ url_for('export_wardrobe') }}" method="GET" style="margin-left: auto;">
-        <button type="submit" class="btn btn--outline" {% if user['tier'] != 'pro' %}disabled title="Pro Feature"{% endif %}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg> Export CSV {% if user['tier'] != 'pro' %}🔒{% endif %}</button>
-      </form>
     </div>
 
     <!-- Stats & Analytics Area -->
