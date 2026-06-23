@@ -1092,13 +1092,13 @@ def preview_look():
             preview_path = os.path.join(app.config["UPLOAD_FOLDER"], preview_filename)
             with open(preview_path, "wb") as f:
                 f.write(image_data)
-            image_src = url_for("static", filename=f"uploads/{preview_filename}")
+            image_src = url_for("uploaded_file", filename=preview_filename)
         elif image_url:
             preview_filename = secure_filename(f"preview_{user['id']}_{int(datetime.utcnow().timestamp())}.png")
             preview_path = os.path.join(app.config["UPLOAD_FOLDER"], preview_filename)
             try:
                 urllib.request.urlretrieve(image_url, preview_path)
-                image_src = url_for("static", filename=f"uploads/{preview_filename}")
+                image_src = url_for("uploaded_file", filename=preview_filename)
             except Exception as download_err:
                 app.logger.warning(f"Failed to download preview from URL: {download_err}")
                 image_src = image_url

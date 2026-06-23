@@ -236,7 +236,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const notes = (preview.notes || []).map(note => `<li>${note}</li>`).join("");
       const imgHtml = preview.image_path 
         ? `<div class="preview-history__image-wrapper">
-             <img src="/static/uploads/${preview.image_path}" alt="AI Visualization" class="preview-history__image" />
+             <img src="/uploads/${preview.image_path}" alt="AI Visualization" class="preview-history__image" />
            </div>`
         : "";
       return `
