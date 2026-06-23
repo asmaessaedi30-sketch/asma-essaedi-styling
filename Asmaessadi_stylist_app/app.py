@@ -204,6 +204,12 @@ def init_db():
     if "style_preference" not in existing_columns:
         db.execute("ALTER TABLE users ADD COLUMN style_preference TEXT")
 
+    existing_columns_previews = {
+        row[1] for row in db.execute("PRAGMA table_info(look_previews)").fetchall()
+    }
+    if "image_path" not in existing_columns_previews:
+        db.execute("ALTER TABLE look_previews ADD COLUMN image_path TEXT")
+
     db.commit()
     db.close()
     print("[DB] Database initialised.")
@@ -261,8 +267,8 @@ def optimized_image_reference(image_path, filename):
         with Image.open(image_path) as source:
             image = ImageOps.exif_transpose(source)
             
-            # Downsize early to avoid memory bloat (800x800 is plenty for styling reference)
-            image.thumbnail((800, 800), Image.Resampling.LANCZOS)
+            # Downsize early to avoid memory bloat (512x512 is plenty for styling reference)
+            image.thumbnail((512, 512), Image.Resampling.BILINEAR)
             
             if image.mode in {"RGBA", "LA"}:
                 background = Image.new("RGB", image.size, "white")
@@ -541,15 +547,15 @@ def build_style_notes(items, occasion, style_vibe, styling_goal):
     return notes[:4]
 
 
-def save_look_preview(user_id, occasion, style_vibe, styling_goal, notes, items):
+def save_look_preview(user_id, occasion, style_vibe, styling_goal, notes, items, image_path=None):
     """Persist recent look previews so users see ongoing value."""
     db = get_db()
     db.execute(
         """
-        INSERT INTO look_previews (user_id, occasion, style_vibe, styling_goal, notes, items_json)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO look_previews (user_id, occasion, style_vibe, styling_goal, notes, items_json, image_path)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
-        (user_id, occasion, style_vibe, styling_goal, "\n".join(notes), json.dumps(items, default=str))
+        (user_id, occasion, style_vibe, styling_goal, "\n".join(notes), json.dumps(items, default=str), image_path)
     )
     db.commit()
 
@@ -559,7 +565,7 @@ def recent_previews_for_user(user_id, limit=6):
     db = get_db()
     rows = db.execute(
         """
-        SELECT id, occasion, style_vibe, styling_goal, notes, items_json, created_at
+        SELECT id, occasion, style_vibe, styling_goal, notes, items_json, created_at, image_path
         FROM look_previews
         WHERE user_id = ?
         ORDER BY created_at DESC, id DESC
@@ -837,11 +843,31 @@ def add_item():
             flash("Image must be PNG, JPG, JPEG, or WEBP.", "error")
             return redirect(url_for("add_item"))
 
-        # Save the file with a timestamped, safe filename
-        ext      = file.filename.rsplit(".", 1)[1].lower()
-        filename = secure_filename(f"{user['id']}_{int(datetime.utcnow().timestamp())}_{name}.{ext}")
+        # Save the file with a timestamped, safe filename ending in .jpg
+        filename = secure_filename(f"{user['id']}_{int(datetime.utcnow().timestamp())}_{name}.jpg")
         save_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-        file.save(save_path)
+        
+        # Optimize and resize image early during upload to save disk space and runtime memory
+        try:
+            if Image is not None:
+                file.seek(0)
+                with Image.open(file.stream) as img:
+                    img = ImageOps.exif_transpose(img)
+                    img.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
+                    if img.mode in {"RGBA", "LA"}:
+                        background = Image.new("RGB", img.size, "white")
+                        background.paste(img, mask=img.getchannel("A"))
+                        img = background
+                    else:
+                        img = img.convert("RGB")
+                    img.save(save_path, "JPEG", quality=80)
+            else:
+                file.seek(0)
+                file.save(save_path)
+        except Exception as upload_err:
+            app.logger.warning(f"Failed to optimize upload: {upload_err}")
+            file.seek(0)
+            file.save(save_path)
 
         # Persist to database
         db = get_db()
@@ -1056,10 +1082,27 @@ def preview_look():
         image_result = result.data[0]
         image_b64 = getattr(image_result, "b64_json", None)
         image_url = getattr(image_result, "url", None)
+        import base64
+        import urllib.request
+        
+        preview_filename = None
         if image_b64:
-            image_src = f"data:image/png;base64,{image_b64}"
+            image_data = base64.b64decode(image_b64)
+            preview_filename = secure_filename(f"preview_{user['id']}_{int(datetime.utcnow().timestamp())}.png")
+            preview_path = os.path.join(app.config["UPLOAD_FOLDER"], preview_filename)
+            with open(preview_path, "wb") as f:
+                f.write(image_data)
+            image_src = url_for("static", filename=f"uploads/{preview_filename}")
         elif image_url:
-            image_src = image_url
+            preview_filename = secure_filename(f"preview_{user['id']}_{int(datetime.utcnow().timestamp())}.png")
+            preview_path = os.path.join(app.config["UPLOAD_FOLDER"], preview_filename)
+            try:
+                urllib.request.urlretrieve(image_url, preview_path)
+                image_src = url_for("static", filename=f"uploads/{preview_filename}")
+            except Exception as download_err:
+                app.logger.warning(f"Failed to download preview from URL: {download_err}")
+                image_src = image_url
+                preview_filename = None
         else:
             return jsonify({"error": "OpenAI returned a preview without image data. Try again."}), 502
     except Exception as exc:
@@ -1067,7 +1110,7 @@ def preview_look():
         return jsonify({"error": f"Unable to create AI preview: {exc}"}), 500
 
     notes = build_style_notes(items, occasion, style_vibe, styling_goal)
-    save_look_preview(user["id"], occasion, style_vibe, styling_goal, notes, items)
+    save_look_preview(user["id"], occasion, style_vibe, styling_goal, notes, items, preview_filename)
 
     return jsonify({
         "image_data_url": image_src,

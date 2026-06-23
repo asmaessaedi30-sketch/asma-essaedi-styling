@@ -234,11 +234,21 @@
         dropZone.classList.add("drop-zone--over");
       });
     });
-    ["dragleave", "drop"].forEach(eventName => {
-      dropZone.addEventListener(eventName, event => {
-        event.preventDefault();
-        dropZone.classList.remove("drop-zone--over");
-      });
+    dropZone.addEventListener("dragleave", event => {
+      event.preventDefault();
+      dropZone.classList.remove("drop-zone--over");
+    });
+    dropZone.addEventListener("drop", event => {
+      event.preventDefault();
+      dropZone.classList.remove("drop-zone--over");
+      const file = event.dataTransfer?.files?.[0];
+      if (file) {
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        input.files = dataTransfer.files;
+        updatePreview(file);
+        runAiAnalysis(file);
+      }
     });
   });
 </script>

@@ -234,8 +234,14 @@ document.addEventListener("DOMContentLoaded", () => {
     recentPreviews.innerHTML = previews.map(preview => {
       const items = (preview.items || []).map(item => `<li>${item.category}: ${item.name}</li>`).join("");
       const notes = (preview.notes || []).map(note => `<li>${note}</li>`).join("");
+      const imgHtml = preview.image_path 
+        ? `<div class="preview-history__image-wrapper">
+             <img src="/static/uploads/${preview.image_path}" alt="AI Visualization" class="preview-history__image" />
+           </div>`
+        : "";
       return `
         <article class="preview-history__card">
+          ${imgHtml}
           <div class="preview-history__head">
             <span class="badge">${preview.style_vibe}</span>
             <span class="preview-history__occasion">${preview.occasion}</span>

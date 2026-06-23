@@ -183,6 +183,11 @@
         {% if recent_previews %}
           {% for preview in recent_previews %}
           <article class="preview-history__card">
+            {% if preview.image_path %}
+            <div class="preview-history__image-wrapper">
+              <img src="{{ url_for('static', filename='uploads/' + preview.image_path) }}" alt="AI Visualization" class="preview-history__image" />
+            </div>
+            {% endif %}
             <div class="preview-history__head">
               <span class="badge">{{ preview.style_vibe }}</span>
               <span class="preview-history__occasion">{{ preview.occasion }}</span>
