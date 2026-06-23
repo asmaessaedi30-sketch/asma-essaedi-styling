@@ -1264,6 +1264,10 @@ def stripe_webhook():
 @app.errorhandler(Exception)
 def handle_exception(e):
     """Log any unhandled exception to a local file for diagnosis."""
+    from werkzeug.exceptions import HTTPException
+    if isinstance(e, HTTPException) and e.code < 500:
+        return e
+
     import traceback
     error_log_path = os.path.join(DATA_DIR, "last_error.log")
     try:
