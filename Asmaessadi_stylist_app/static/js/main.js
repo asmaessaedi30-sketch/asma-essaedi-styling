@@ -114,7 +114,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
           }
           visualizeResult.innerHTML = `
-            <img src="${imageUrl}" alt="Visualized look" style="width:100%; max-width:400px; border-radius:12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-top:20px;" />
+            <img src="${data.image_data_url}" alt="Visualized look" style="width:100%; max-width:400px; border-radius:12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-top:20px;" />
           `;
         }
       } catch (err) {
