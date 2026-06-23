@@ -572,8 +572,10 @@ def recent_previews_for_user(user_id, limit=6):
     previews = []
     for row in rows:
         preview = dict(row)
-        preview["items"] = json.loads(preview.pop("items_json"))
-        preview["notes"] = [note for note in preview["notes"].split("\n") if note]
+        items_str = preview.pop("items_json") or "[]"
+        preview["items"] = json.loads(items_str)
+        notes_str = preview.pop("notes") or ""
+        preview["notes"] = [note for note in notes_str.split("\n") if note]
         previews.append(preview)
     return previews
 
