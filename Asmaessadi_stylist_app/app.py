@@ -367,12 +367,12 @@ def send_email(to_email, subject, body):
     tls_context = ssl.create_default_context(cafile=certifi.where() if certifi else None)
 
     if settings["use_ssl"]:
-        with smtplib.SMTP_SSL(settings["smtp_host"], settings["smtp_port"], context=tls_context) as smtp:
+        with smtplib.SMTP_SSL(settings["smtp_host"], settings["smtp_port"], context=tls_context, timeout=10) as smtp:
             smtp.login(settings["username"], settings["password"])
             smtp.send_message(message)
         return
 
-    with smtplib.SMTP(settings["smtp_host"], settings["smtp_port"]) as smtp:
+    with smtplib.SMTP(settings["smtp_host"], settings["smtp_port"], timeout=10) as smtp:
         smtp.starttls(context=tls_context)
         smtp.login(settings["username"], settings["password"])
         smtp.send_message(message)
