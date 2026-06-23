@@ -251,27 +251,42 @@ def mime_type_for_image(filename):
 
 
 def optimized_image_reference(image_path, filename):
-    """Return a compact image tuple for OpenAI image previews."""
+    """Return a compact image tuple for OpenAI image previews, optimized for memory usage."""
+    import gc
     safe_name = secure_filename(filename)
     if Image is None:
         with open(image_path, "rb") as image_file:
             return safe_name, image_file.read(), mime_type_for_image(safe_name)
 
-    with Image.open(image_path) as source:
-        image = ImageOps.exif_transpose(source)
-        if image.mode in {"RGBA", "LA"}:
-            background = Image.new("RGB", image.size, "white")
-            background.paste(image, mask=image.getchannel("A"))
-            image = background
-        else:
-            image = image.convert("RGB")
+    try:
+        with Image.open(image_path) as source:
+            image = ImageOps.exif_transpose(source)
+            
+            # Downsize early to avoid memory bloat (800x800 is plenty for styling reference)
+            image.thumbnail((800, 800), Image.Resampling.LANCZOS)
+            
+            if image.mode in {"RGBA", "LA"}:
+                background = Image.new("RGB", image.size, "white")
+                background.paste(image, mask=image.getchannel("A"))
+                image = background
+            else:
+                image = image.convert("RGB")
 
-        image.thumbnail((1400, 1400), Image.Resampling.LANCZOS)
-        output = io.BytesIO()
-        image.save(output, format="JPEG", quality=82, optimize=True)
+            output = io.BytesIO()
+            # Save at slightly lower quality without optimize=True to save CPU/memory
+            image.save(output, format="JPEG", quality=75)
+            data_bytes = output.getvalue()
+            
+            image.close()
+            if 'background' in locals() and hasattr(background, "close"):
+                background.close()
+    finally:
+        gc.collect()
 
     root = os.path.splitext(safe_name)[0] or "wardrobe-item"
-    return f"{root}.jpg", output.getvalue(), "image/jpeg"
+    return f"{root}.jpg", data_bytes, "image/jpeg"
+
+
 
 
 def wardrobe_item_payload(row):
@@ -1049,14 +1064,14 @@ def preview_look():
         "This is a wardrobe-planning visualization, not a shopping ad."
     )
 
-    image_files = []
-    for item in items:
-        image_path = os.path.join(app.config["UPLOAD_FOLDER"], item["image_path"])
-        if not os.path.exists(image_path):
-            return jsonify({"error": f"Missing image for {item['name']}."}), 500
-        image_files.append(optimized_image_reference(image_path, item["image_path"]))
-
     try:
+        image_files = []
+        for item in items:
+            image_path = os.path.join(app.config["UPLOAD_FOLDER"], item["image_path"])
+            if not os.path.exists(image_path):
+                return jsonify({"error": f"Missing image for {item['name']}."}), 500
+            image_files.append(optimized_image_reference(image_path, item["image_path"]))
+
         result = client.images.edit(
             model=os.environ.get("OPENAI_IMAGE_MODEL", "gpt-image-1.5"),
             image=image_files,
