@@ -1043,7 +1043,7 @@ You MUST respond with a valid JSON object with EXACTLY two keys:
 """
         try:
             response = client.chat.completions.create(
-                model=os.environ.get("OPENAI_LANGUAGE_MODEL", "gpt-4o"),
+                model=os.environ.get("OPENAI_LANGUAGE_MODEL", "gpt-4o-mini"),
                 messages=[
                     {"role": "system", "content": "You are a professional stylist that exclusively outputs raw, valid JSON."},
                     {"role": "user", "content": prompt}
@@ -1154,7 +1154,7 @@ def preview_look():
 
     try:
         result = client.images.generate(
-            model=os.environ.get("OPENAI_IMAGE_MODEL", "gpt-image-1.5"),
+            model=os.environ.get("OPENAI_IMAGE_MODEL", "gpt-image-1-mini"),
             prompt=prompt,
             size=os.environ.get("OPENAI_IMAGE_SIZE", "1024x1024"),
             n=1
@@ -1236,7 +1236,7 @@ Return ONLY valid HTML elements inside a single div wrapper, no markdown wrapper
 
     try:
         response = client.chat.completions.create(
-            model=os.environ.get("OPENAI_LANGUAGE_MODEL", "gpt-4o"),
+            model=os.environ.get("OPENAI_LANGUAGE_MODEL", "gpt-4o-mini"),
             messages=[
                 {"role": "system", "content": "You are an expert personal stylist."}, 
                 {"role": "user", "content": prompt}
@@ -1299,7 +1299,7 @@ def analyze_image():
         )
 
         response = client.chat.completions.create(
-            model=os.environ.get("OPENAI_LANGUAGE_MODEL", "gpt-4o"),
+            model=os.environ.get("OPENAI_LANGUAGE_MODEL", "gpt-4o-mini"),
             messages=[
                 {
                     "role": "user",
