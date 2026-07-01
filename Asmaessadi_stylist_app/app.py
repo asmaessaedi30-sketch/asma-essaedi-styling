@@ -6,7 +6,7 @@ Flask backend for wardrobe management and outfit generation.
 Next Phase: Connect to OpenAI API in the `generate_outfit_ai()` route
 by replacing the random selection logic with a GPT-4 Vision prompt.
 
-Author: Your Name
+Author: Asma Essaedi
 Version: 1.0.0 (MVP)
 """
 
@@ -131,17 +131,98 @@ STYLE_VIBES = [
 ]
 
 # ---------------------------------------------------------------------------
-# Database Helpers
+# Database Configuration (SQLite fallback & PostgreSQL wrapper for Render)
 # ---------------------------------------------------------------------------
 
+try:
+    import psycopg2
+    import psycopg2.extras
+except ImportError:
+    psycopg2 = None
+
 DATABASE = os.path.join(DATA_DIR, "stylist.db")
+
+
+class PostgreSQLWrapper:
+    """Wrapper to make PostgreSQL connections match SQLite's interface."""
+    def __init__(self, conn):
+        self.conn = conn
+
+    def execute(self, query, params=None):
+        # Translate '?' placeholder to '%s' for PostgreSQL
+        query_translated = query.replace('?', '%s')
+        
+        # Intercept SQLite-specific PRAGMA table_info calls
+        if "PRAGMA table_info" in query:
+            import re
+            match = re.search(r"PRAGMA table_info\((\w+)\)", query)
+            if match:
+                table_name = match.group(1)
+                cur = self.conn.cursor()
+                cur.execute(
+                    "SELECT column_name FROM information_schema.columns WHERE table_name = %s",
+                    (table_name,)
+                )
+                columns = cur.fetchall()
+                fake_rows = [(None, col[0]) for col in columns]
+                
+                class FakeCursor:
+                    def __init__(self, rows):
+                        self.rows = rows
+                    def fetchall(self):
+                        return self.rows
+                    def fetchone(self):
+                        return self.rows[0] if self.rows else None
+                    def __iter__(self):
+                        return iter(self.rows)
+                return FakeCursor(fake_rows)
+
+        cur = self.conn.cursor()
+        try:
+            if params is not None:
+                cur.execute(query_translated, params)
+            else:
+                cur.execute(query_translated)
+            return cur
+        except Exception as e:
+            self.conn.rollback()
+            raise e
+
+    def executescript(self, script_text):
+        # Convert SQLite auto-increment syntax to PostgreSQL SERIAL
+        translated = script_text.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY")
+        cur = self.conn.cursor()
+        try:
+            cur.execute(translated)
+            self.conn.commit()
+            return cur
+        except Exception as e:
+            self.conn.rollback()
+            raise e
+
+    def commit(self):
+        self.conn.commit()
+
+    def rollback(self):
+        self.conn.rollback()
+
+    def close(self):
+        self.conn.close()
 
 
 def get_db():
     """Open a database connection scoped to the current request."""
     if "db" not in g:
-        g.db = sqlite3.connect(DATABASE, detect_types=sqlite3.PARSE_DECLTYPES)
-        g.db.row_factory = sqlite3.Row  # access columns by name
+        db_url = os.environ.get("DATABASE_URL")
+        if db_url and psycopg2:
+            # Render PostgreSQL URL starts with postgres://, but psycopg2 prefers postgresql://
+            if db_url.startswith("postgres://"):
+                db_url = db_url.replace("postgres://", "postgresql://", 1)
+            conn = psycopg2.connect(db_url, cursor_factory=psycopg2.extras.DictCursor)
+            g.db = PostgreSQLWrapper(conn)
+        else:
+            g.db = sqlite3.connect(DATABASE, detect_types=sqlite3.PARSE_DECLTYPES)
+            g.db.row_factory = sqlite3.Row  # access columns by name
     return g.db
 
 
@@ -155,10 +236,17 @@ def close_db(error):
 
 def init_db():
     """Create tables if they don't already exist."""
-    os.makedirs(DATA_DIR, exist_ok=True)
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    db_url = os.environ.get("DATABASE_URL")
+    if db_url and psycopg2:
+        if db_url.startswith("postgres://"):
+            db_url = db_url.replace("postgres://", "postgresql://", 1)
+        conn = psycopg2.connect(db_url, cursor_factory=psycopg2.extras.DictCursor)
+        db = PostgreSQLWrapper(conn)
+    else:
+        os.makedirs(DATA_DIR, exist_ok=True)
+        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+        db = sqlite3.connect(DATABASE)
 
-    db = sqlite3.connect(DATABASE)
     db.executescript("""
         CREATE TABLE IF NOT EXISTS users (
             id        INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -399,8 +487,7 @@ def send_email(to_email, subject, body):
             app.logger.info("Email sent successfully via Resend API.")
             return
         except Exception as e:
-            app.logger.exception("Failed to send email via Resend API: %s", e)
-            raise
+            app.logger.warning("Failed to send email via Resend API: %s. Trying SMTP fallback.", e)
 
     # Fallback to SMTP
     settings = smtp_settings()
@@ -1066,18 +1153,11 @@ def preview_look():
     )
 
     try:
-        image_files = []
-        for item in items:
-            image_path = os.path.join(app.config["UPLOAD_FOLDER"], item["image_path"])
-            if not os.path.exists(image_path):
-                return jsonify({"error": f"Missing image for {item['name']}."}), 500
-            image_files.append(optimized_image_reference(image_path, item["image_path"]))
-
-        result = client.images.edit(
+        result = client.images.generate(
             model=os.environ.get("OPENAI_IMAGE_MODEL", "gpt-image-1.5"),
-            image=image_files,
             prompt=prompt,
             size=os.environ.get("OPENAI_IMAGE_SIZE", "1024x1024"),
+            n=1
         )
         image_result = result.data[0]
         image_b64 = getattr(image_result, "b64_json", None)
