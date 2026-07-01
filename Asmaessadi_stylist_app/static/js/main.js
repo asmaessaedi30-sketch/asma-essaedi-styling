@@ -42,10 +42,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (generateBtn) {
     generateBtn.addEventListener("click", async () => {
+      const outfitNoteContainer = document.getElementById("outfitNoteContainer");
+      const hairSuggestion = document.getElementById("hairSuggestion");
+      const accessoriesSuggestion = document.getElementById("accessoriesSuggestion");
+      const makeupSuggestion = document.getElementById("makeupSuggestion");
+
       generateBtn.classList.add("btn--loading");
       generateBtn.textContent = "Styling…";
       if (outfitError) outfitError.style.display = "none";
-      if (outfitNote) outfitNote.style.display = "none";
+      if (outfitNoteContainer) outfitNoteContainer.style.display = "none";
 
       try {
         const formData = new FormData();
@@ -66,9 +71,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
         renderOutfit(data.outfit);
         
-        if (outfitNote && data.note) {
-          outfitNote.textContent = data.note;
-          outfitNote.style.display = "block";
+        if (outfitNoteContainer && data.note) {
+          if (outfitNote) outfitNote.textContent = data.note;
+          if (hairSuggestion) hairSuggestion.textContent = data.hair || "N/A";
+          if (accessoriesSuggestion) accessoriesSuggestion.textContent = data.accessories_suggestion || "N/A";
+          if (makeupSuggestion) makeupSuggestion.textContent = data.makeup || "N/A";
+          outfitNoteContainer.style.display = "block";
         }
         
         if (visualizeContainer && data.item_ids && data.item_ids.length >= 2) {

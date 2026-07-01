@@ -86,7 +86,31 @@
         </div>
       </div>
 
-      <div id="outfitNote" style="display:none; margin-top: 1.5rem; padding: 1.25rem; background: var(--surface-hover); border-radius: 8px; border-left: 4px solid var(--accent); color: var(--text-base); font-style: italic; line-height: 1.5;"></div>
+      <!-- Outfit Note & Suggestions -->
+      <div id="outfitNoteContainer" style="display:none; margin-top: 1.5rem; background: var(--surface-hover); border-radius: 12px; border: 1px solid var(--border-color); padding: 1.5rem;">
+        <div id="outfitNote" style="font-style: italic; margin-bottom: 1.25rem; line-height: 1.5; color: var(--text-base); border-left: 4px solid var(--accent); padding-left: 1rem;"></div>
+        
+        <div class="style-suggestions-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; border-top: 1px solid var(--border-color); padding-top: 1.25rem;">
+          <div class="suggestion-item">
+            <h4 style="margin: 0 0 0.5rem; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--accent);">
+              💇‍♀️ Hair
+            </h4>
+            <p id="hairSuggestion" style="margin: 0; font-size: 0.875rem; color: var(--text-muted);"></p>
+          </div>
+          <div class="suggestion-item">
+            <h4 style="margin: 0 0 0.5rem; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--accent);">
+              💍 Accessories
+            </h4>
+            <p id="accessoriesSuggestion" style="margin: 0; font-size: 0.875rem; color: var(--text-muted);"></p>
+          </div>
+          <div class="suggestion-item">
+            <h4 style="margin: 0 0 0.5rem; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--accent);">
+              💄 Makeup
+            </h4>
+            <p id="makeupSuggestion" style="margin: 0; font-size: 0.875rem; color: var(--text-muted);"></p>
+          </div>
+        </div>
+      </div>
 
       <div id="visualizeContainer" style="display:none; margin-top: 1.5rem; text-align: center;">
         <button id="visualizeBtn" class="btn btn--primary btn--lg" style="width: 100%;">

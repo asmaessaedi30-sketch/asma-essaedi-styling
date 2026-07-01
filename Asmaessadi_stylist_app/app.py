@@ -1028,6 +1028,9 @@ def generate_outfit():
             return random.choice(cat_items) if cat_items else None
         outfit = {"top": pick("tops"), "bottom": pick("bottoms"), "shoes": pick("shoes")}
         note = "Randomly selected because OpenAI is not configured."
+        hair = "Casual/easy styling."
+        accessories = "Minimal jewelry."
+        makeup = "Natural look."
     else:
         # AI generate
         items_json = json.dumps([{"id": i["id"], "category": i["category"], "name": i["name"], "color": i["color"]} for i in items])
@@ -1037,9 +1040,12 @@ Here is their wardrobe inventory in JSON:
 {items_json}
 
 Please select the best combination of items for this context. You can pick up to 4 items (e.g. top, bottom, shoes, outerwear).
-You MUST respond with a valid JSON object with EXACTLY two keys:
+You MUST respond with a valid JSON object with EXACTLY five keys:
 1. "item_ids": A list of the chosen item IDs (integers).
 2. "note": A short, friendly stylist note explaining why you picked this outfit (max 2 sentences).
+3. "hair": A brief suggestion for hair styling (e.g. "Sleek low bun" or "Beach waves"). Keep it under 10 words.
+4. "accessories": A brief suggestion for jewelry/accessories (e.g. "Gold hoops and a classic watch"). Keep it under 10 words.
+5. "makeup": A brief suggestion for makeup (e.g. "Fresh dewy skin with a peach blush"). Keep it under 10 words.
 """
         try:
             response = client.chat.completions.create(
@@ -1058,6 +1064,9 @@ You MUST respond with a valid JSON object with EXACTLY two keys:
             ai_result = json.loads(content)
             chosen_ids = ai_result.get("item_ids", [])
             note = ai_result.get("note", "Here is your outfit for the occasion.")
+            hair = ai_result.get("hair", "Polished and clean styling.")
+            accessories = ai_result.get("accessories", "Minimal jewelry.")
+            makeup = ai_result.get("makeup", "Natural clean makeup.")
             
             outfit_items = [i for i in items if i["id"] in chosen_ids]
             outfit = {
@@ -1072,7 +1081,15 @@ You MUST respond with a valid JSON object with EXACTLY two keys:
             return jsonify({"error": f"AI Generation failed: {exc}"}), 500
 
     item_ids = [i["id"] for i in outfit.values() if i]
-    return jsonify({"outfit": outfit, "item_ids": item_ids, "note": note, "generated_at": datetime.utcnow().isoformat()})
+    return jsonify({
+        "outfit": outfit,
+        "item_ids": item_ids,
+        "note": note,
+        "hair": hair,
+        "accessories_suggestion": accessories,
+        "makeup": makeup,
+        "generated_at": datetime.utcnow().isoformat()
+    })
 
 
 @app.route("/api/preview-look", methods=["POST"])
