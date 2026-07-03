@@ -1158,8 +1158,16 @@ def preview_look():
         if os.path.exists(image_path):
             try:
                 import base64
-                with open(image_path, "rb") as img_file:
-                    base64_image = base64.b64encode(img_file.read()).decode("utf-8")
+                from PIL import Image
+                import io
+                
+                with Image.open(image_path) as img:
+                    if img.mode != "RGB":
+                        img = img.convert("RGB")
+                    img.thumbnail((512, 512))
+                    buffered = io.BytesIO()
+                    img.save(buffered, format="JPEG", quality=85)
+                    base64_image = base64.b64encode(buffered.getvalue()).decode("utf-8")
                 
                 vision_prompt = (
                     f"Analyze this fashion item image (Category: {item['category']}, Color: {item['color']}). "
