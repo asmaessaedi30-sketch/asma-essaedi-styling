@@ -78,14 +78,6 @@ document.addEventListener("DOMContentLoaded", () => {
           if (makeupSuggestion) makeupSuggestion.textContent = data.makeup || "N/A";
           outfitNoteContainer.style.display = "block";
         }
-        
-        if (visualizeContainer && data.item_ids && data.item_ids.length >= 1) {
-          currentGeneratedIds = data.item_ids;
-          visualizeContainer.style.display = "block";
-          if (visualizeResult) visualizeResult.innerHTML = "";
-        } else if (visualizeContainer) {
-          visualizeContainer.style.display = "none";
-        }
 
       } catch (err) {
         showOutfitError("Network error — please try again.");
