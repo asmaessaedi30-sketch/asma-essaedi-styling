@@ -79,7 +79,7 @@ document.addEventListener("DOMContentLoaded", () => {
           outfitNoteContainer.style.display = "block";
         }
         
-        if (visualizeContainer && data.item_ids && data.item_ids.length >= 2) {
+        if (visualizeContainer && data.item_ids && data.item_ids.length >= 1) {
           currentGeneratedIds = data.item_ids;
           visualizeContainer.style.display = "block";
           if (visualizeResult) visualizeResult.innerHTML = "";
@@ -98,7 +98,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (visualizeBtn) {
     visualizeBtn.addEventListener("click", async () => {
-      if (currentGeneratedIds.length < 2) return;
+      if (currentGeneratedIds.length < 1) return;
       visualizeBtn.classList.add("btn--loading");
       visualizeBtn.textContent = "AI Synthesizing Photo…";
       if (visualizeResult) visualizeResult.innerHTML = "";

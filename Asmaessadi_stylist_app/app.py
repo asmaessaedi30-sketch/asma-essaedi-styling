@@ -1151,17 +1151,57 @@ def preview_look():
             "error": "OpenAI is not configured yet. Add OPENAI_API_KEY and install the openai package.",
         }), 500
 
-    styling_notes = ", ".join(
-        f"{item['category']}: {item['name']} ({item['color']})" for item in items
-    )
+    # Generate highly detailed visual descriptions of the actual uploaded clothes using GPT-4o-mini Vision
+    detailed_descriptions = []
+    for item in items:
+        image_path = os.path.join(app.config["UPLOAD_FOLDER"], item["image_path"])
+        if os.path.exists(image_path):
+            try:
+                import base64
+                with open(image_path, "rb") as img_file:
+                    base64_image = base64.b64encode(img_file.read()).decode("utf-8")
+                
+                vision_prompt = (
+                    f"Analyze this fashion item image (Category: {item['category']}, Color: {item['color']}). "
+                    "Describe the garment in detail so an image generator can recreate it perfectly. "
+                    "Include silhouettes, cut (e.g. cropped, oversized), neckline, sleeve type, patterns, prints, and texture/material. "
+                    "Respond with a single concise description sentence of the garment. Keep it under 20 words."
+                )
+
+                response = client.chat.completions.create(
+                    model=os.environ.get("OPENAI_LANGUAGE_MODEL", "gpt-4o-mini"),
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": vision_prompt},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/jpeg;base64,{base64_image}"
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    max_tokens=60,
+                )
+                desc = response.choices[0].message.content.strip()
+                desc = desc.replace('"', '').replace("'", "").strip()
+                detailed_descriptions.append(f"{item['category']}: {desc}")
+            except Exception as vision_err:
+                app.logger.warning(f"Failed to generate vision description for item {item['name']}: {vision_err}")
+                detailed_descriptions.append(f"{item['category']}: {item['color']} {item['name']}")
+        else:
+            detailed_descriptions.append(f"{item['category']}: {item['color']} {item['name']}")
+
+    styling_notes = "; ".join(detailed_descriptions)
 
     prompt = (
         "Create a photorealistic fashion preview on a realistic editorial model. "
-        "Use all provided images as garment references for the final look. "
         "Show a single person wearing the selected outfit in a clean full-body studio-style composition. "
-        "Match garment colors, silhouettes, layering, and textures closely to the reference items. "
+        "Match garment colors, silhouettes, layering, and textures closely to the described items. "
         "Do not add extra garments that were not provided. "
-        "Do not copy branding, watermarks, or product-shot backgrounds from the references. "
         "Use a simple neutral background and clear front-facing pose. "
         f"The intended occasion is {occasion.lower()} and the styling vibe is {style_vibe.lower()}. "
         f"User styling goal: {styling_goal or 'Look polished and expensive without feeling overdone'}. "
