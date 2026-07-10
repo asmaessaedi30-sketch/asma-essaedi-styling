@@ -204,7 +204,7 @@
             </div>
             <p class="preview-history__goal">{{ preview.styling_goal or 'No specific styling goal saved.' }}</p>
             <ul class="preview-history__items">
-              {% for item in preview.items %}
+              {% for item in preview['items'] %}
               <li>{{ item.category }}: {{ item.name }}</li>
               {% endfor %}
             </ul>
