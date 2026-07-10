@@ -237,14 +237,15 @@ def close_db(error):
 def init_db():
     """Create tables if they don't already exist."""
     db_url = os.environ.get("DATABASE_URL")
+    os.makedirs(DATA_DIR, exist_ok=True)
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    
     if db_url and psycopg2:
         if db_url.startswith("postgres://"):
             db_url = db_url.replace("postgres://", "postgresql://", 1)
         conn = psycopg2.connect(db_url, cursor_factory=psycopg2.extras.DictCursor)
         db = PostgreSQLWrapper(conn)
     else:
-        os.makedirs(DATA_DIR, exist_ok=True)
-        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
         db = sqlite3.connect(DATABASE)
 
     db.executescript("""
