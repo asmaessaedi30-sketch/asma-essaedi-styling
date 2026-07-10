@@ -754,7 +754,7 @@ def login():
 
         session["user_id"] = user["id"]
         
-        if not dict(user).get("onboarding_completed"):
+        if not (user["onboarding_completed"] if user and "onboarding_completed" in user.keys() else None):
             return redirect(url_for("onboarding"))
         return redirect(url_for("dashboard"))
 
@@ -766,7 +766,7 @@ def login():
 def onboarding():
     """Personalize the user's dashboard based on their preferences."""
     user = current_user()
-    if dict(user).get("onboarding_completed"):
+    if (user["onboarding_completed"] if user and "onboarding_completed" in user.keys() else None):
         return redirect(url_for("dashboard"))
         
     if request.method == "POST":
@@ -1014,7 +1014,7 @@ def generate_outfit():
     db   = get_db()
     context = request.form.get("context", "").strip() or "Something nice for today."
     
-    prefs_str = dict(user).get("style_preference")
+    prefs_str = user["style_preference"] if user and "style_preference" in user.keys() else None
     presentation = "Unisex / Androgynous"
     if prefs_str:
         try:
@@ -1123,7 +1123,7 @@ def preview_look():
 
     user = current_user()
     
-    prefs_str = dict(user).get("style_preference")
+    prefs_str = user["style_preference"] if user and "style_preference" in user.keys() else None
     presentation = "Unisex / Androgynous"
     if prefs_str:
         try:
@@ -1299,7 +1299,7 @@ def analyze_closet():
     """Generates an AI wardrobe analysis for all users."""
     user = current_user()
     
-    prefs_str = dict(user).get("style_preference")
+    prefs_str = user["style_preference"] if user and "style_preference" in user.keys() else None
     presentation = "Unisex / Androgynous"
     if prefs_str:
         try:
