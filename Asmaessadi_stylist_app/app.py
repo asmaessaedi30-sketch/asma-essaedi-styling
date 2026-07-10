@@ -388,7 +388,7 @@ def optimized_image_reference(image_path, filename):
 
 def wardrobe_item_payload(row):
     """Convert a wardrobe DB row into JSON-safe data for API responses."""
-    item = dict(row)
+    item = {k: row[k] for k in row.keys()}
     created_at = item.get("created_at")
     if isinstance(created_at, datetime):
         item["created_at"] = created_at.isoformat()
@@ -667,7 +667,7 @@ def recent_previews_for_user(user_id, limit=6):
 
     previews = []
     for row in rows:
-        preview = dict(row)
+        preview = {k: row[k] for k in row.keys()}
         items_str = preview.pop("items_json") or "[]"
         preview["items"] = json.loads(items_str)
         notes_str = preview.pop("notes") or ""
