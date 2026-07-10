@@ -295,6 +295,10 @@ def init_db():
         db.execute("ALTER TABLE users ADD COLUMN onboarding_completed INTEGER DEFAULT 0")
     if "style_preference" not in existing_columns:
         db.execute("ALTER TABLE users ADD COLUMN style_preference TEXT")
+    if "reset_code" not in existing_columns:
+        db.execute("ALTER TABLE users ADD COLUMN reset_code TEXT")
+    if "reset_code_expires" not in existing_columns:
+        db.execute("ALTER TABLE users ADD COLUMN reset_code_expires INTEGER")
 
     existing_columns_previews = {
         row[1] for row in db.execute("PRAGMA table_info(look_previews)").fetchall()
@@ -405,23 +409,6 @@ def current_user():
     return db.execute("SELECT * FROM users WHERE id = ?", (session["user_id"],)).fetchone()
 
 
-def reset_token_serializer():
-    """Create a timed serializer for password reset tokens."""
-    return URLSafeTimedSerializer(app.secret_key, salt="password-reset")
-
-
-def build_reset_token(email):
-    """Create a signed password reset token for a user email."""
-    return reset_token_serializer().dumps(email)
-
-
-def verify_reset_token(token, max_age=3600):
-    """Validate a reset token and return the email or None."""
-    try:
-        return reset_token_serializer().loads(token, max_age=max_age)
-    except (BadSignature, SignatureExpired):
-        return None
-
 
 def smtp_settings():
     """Return SMTP settings, with Gmail app-password aliases supported."""
@@ -518,18 +505,17 @@ def send_email(to_email, subject, body):
         smtp.send_message(message)
 
 
-def send_password_reset_email(to_email, reset_link):
-    """Email a password reset link to a user."""
-    body = f"""Hi,
-
+def send_password_reset_email(to_email, code, reset_link):
+    """Email a password reset link and verification code to a user."""
+    body = f"""\
 We received a request to reset your Asma Essaedi password.
 
-Use this link to choose a new password:
+Your 6-digit verification code is: {code}
+
+You can also click the link below to verify automatically:
 {reset_link}
 
-This link expires in 1 hour. If you did not request a password reset, you can ignore this email.
-
-Asma Essaedi
+This code expires in 1 hour. If you did not request a password reset, you can ignore this email.
 """
     send_email(to_email, "Reset your Asma Essaedi password", body)
 
@@ -801,16 +787,27 @@ def forgot_password():
         user = db.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
 
         if user:
-            token = build_reset_token(email)
-            reset_link = f"{app_base_url()}{url_for('reset_password', token=token)}"
-            try:
-                app.logger.info("Password reset email send started. base_url=%s", app_base_url())
-                send_password_reset_email(email, reset_link)
-                app.logger.info("Password reset email sent successfully.")
-            except Exception:
-                app.logger.exception("Password reset email failed.")
-                flash("We could not send the reset email right now. Please try again later.", "error")
-                return redirect(url_for("forgot_password"))
+            import time
+            import random
+            code = f"{random.randint(100000, 999999)}"
+            expires = int(time.time()) + 3600
+            
+            db.execute("UPDATE users SET reset_code = ?, reset_code_expires = ? WHERE email = ?", (code, expires, email))
+            db.commit()
+            
+            reset_link = f"{app_base_url()}{url_for('reset_password')}?email={email}&code={code}"
+
+            if app.config.get("TESTING"):
+                flash(f"Test mode link: {reset_link}", "info")
+            else:
+                try:
+                    app.logger.info("Password reset email send started. base_url=%s", app_base_url())
+                    send_password_reset_email(email, code, reset_link)
+                    app.logger.info("Password reset email sent successfully.")
+                except Exception:
+                    app.logger.exception("Password reset email failed.")
+                    flash("We could not send the reset email right now. Please try again later.", "error")
+                    return redirect(url_for("forgot_password"))
         else:
             app.logger.info("Password reset requested for an email without an account.")
 
@@ -820,37 +817,44 @@ def forgot_password():
     return render_template("forgot_password.html")
 
 
-@app.route("/reset-password/<token>", methods=["GET", "POST"])
-def reset_password(token):
-    """Allow a user to set a new password from a signed token."""
-    email = verify_reset_token(token)
-    if not email:
-        flash("That reset link is invalid or has expired.", "error")
-        return redirect(url_for("forgot_password"))
-
+@app.route("/reset-password", methods=["GET", "POST"])
+def reset_password():
+    """Allow a user to set a new password from a 6-digit code."""
+    email = request.args.get("email", "")
+    code = request.args.get("code", "")
+    
     if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        code = request.form.get("code", "").strip()
         password = request.form.get("password", "")
         confirm_password = request.form.get("confirm_password", "")
+
+        db = get_db()
+        user = db.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+        
+        import time
+        if not user or not user["reset_code"] or str(user["reset_code"]) != str(code) or not user["reset_code_expires"] or user["reset_code_expires"] < int(time.time()):
+            flash("That verification code is invalid or has expired.", "error")
+            return redirect(url_for("reset_password", email=email, code=code))
 
         is_valid, msg = validate_password_strength(password)
         if not is_valid:
             flash(msg, "error")
-            return redirect(url_for("reset_password", token=token))
+            return redirect(url_for("reset_password", email=email, code=code))
 
         if password != confirm_password:
             flash("Passwords do not match.", "error")
-            return redirect(url_for("reset_password", token=token))
+            return redirect(url_for("reset_password", email=email, code=code))
 
-        db = get_db()
         db.execute(
-            "UPDATE users SET password = ? WHERE email = ?",
+            "UPDATE users SET password = ?, reset_code = NULL, reset_code_expires = NULL WHERE email = ?",
             (generate_password_hash(password), email)
         )
         db.commit()
         flash("Your password has been reset. Log in with your new password.", "success")
         return redirect(url_for("login"))
 
-    return render_template("reset_password.html", token=token, email=email)
+    return render_template("reset_password.html", email=email, code=code)
 
 
 # ---------------------------------------------------------------------------
