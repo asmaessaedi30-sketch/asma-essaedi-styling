@@ -124,15 +124,7 @@
         </div>
       </div>
 
-      <div class="tryon-panel {% if user['tier'] != 'pro' %}premium-locked{% endif %}" style="position: relative;">
-        {% if user['tier'] != 'pro' %}
-        <div class="premium-overlay">
-          <div class="modal__badge" style="margin: 0 auto 1rem;">PRO</div>
-          <h3 style="margin-bottom: 0.5rem;">Unlock AI Event Styling</h3>
-          <p style="margin-bottom: 1.5rem; text-align: center; max-width: 300px;">See your wardrobe come to life on photorealistic models</p>
-          <button class="btn btn--primary premium-trigger" onclick="document.getElementById('premiumModal').classList.add('modal--open')">Upgrade to Pro</button>
-        </div>
-        {% endif %}
+      <div class="tryon-panel" style="position: relative;">
         <div class="tryon-form">
           <div class="tryon-brief">
             <span class="drop-zone__icon">AI</span>
