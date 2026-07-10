@@ -61,6 +61,9 @@ def default_data_dir():
     if explicit:
         return explicit
 
+    if "WEBSITE_SITE_NAME" in os.environ:
+        return "/home/data"
+
     legacy_instance_dir = os.path.join(BASE_DIR, "instance")
     if os.path.exists(os.path.join(legacy_instance_dir, "stylist.db")):
         return legacy_instance_dir
@@ -769,8 +772,9 @@ def onboarding():
     if request.method == "POST":
         style_goal = request.form.get("style_goal", "").strip()
         color_vibe = request.form.get("color_vibe", "").strip()
+        presentation = request.form.get("presentation", "Unisex / Androgynous").strip()
         
-        preference_json = json.dumps({"style_goal": style_goal, "color_vibe": color_vibe})
+        preference_json = json.dumps({"style_goal": style_goal, "color_vibe": color_vibe, "presentation": presentation})
         
         db = get_db()
         db.execute(
@@ -1009,6 +1013,14 @@ def generate_outfit():
     user = current_user()
     db   = get_db()
     context = request.form.get("context", "").strip() or "Something nice for today."
+    
+    prefs_str = dict(user).get("style_preference")
+    presentation = "Unisex / Androgynous"
+    if prefs_str:
+        try:
+            presentation = json.loads(prefs_str).get("presentation", presentation)
+        except Exception:
+            pass
 
     client = openai_client()
     
@@ -1037,6 +1049,8 @@ def generate_outfit():
         items_json = json.dumps([{"id": i["id"], "category": i["category"], "name": i["name"], "color": i["color"]} for i in items])
         
         prompt = f"""You are a personal stylist. The user needs an outfit for: "{context}".
+The user's preferred styling presentation is: {presentation}.
+If the presentation is Menswear/Masculine, do NOT suggest makeup, and limit accessories to standard menswear items unless requested otherwise.
 Here is their wardrobe inventory in JSON:
 {items_json}
 
@@ -1108,6 +1122,15 @@ def preview_look():
         }), 500
 
     user = current_user()
+    
+    prefs_str = dict(user).get("style_preference")
+    presentation = "Unisex / Androgynous"
+    if prefs_str:
+        try:
+            presentation = json.loads(prefs_str).get("presentation", presentation)
+        except Exception:
+            pass
+            
     item_ids = request.form.getlist("item_ids")
     occasion = request.form.get("occasion", PREVIEW_OCCASIONS[0]).strip()
     style_vibe = request.form.get("style_vibe", STYLE_VIBES[0]).strip()
@@ -1208,7 +1231,7 @@ def preview_look():
 
     prompt = (
         "Create a photorealistic fashion preview on a realistic editorial model. "
-        "Show a single person wearing the selected outfit in a clean full-body studio-style composition. "
+        f"Show a single {presentation.split(' / ')[0].lower()} model wearing the selected outfit in a clean full-body studio-style composition. "
         "Match garment colors, silhouettes, layering, and textures closely to the described items. "
         "Do not add extra garments that were not provided. "
         "Use a simple neutral background and clear front-facing pose. "
@@ -1275,6 +1298,14 @@ def preview_look():
 def analyze_closet():
     """Generates an AI wardrobe analysis for all users."""
     user = current_user()
+    
+    prefs_str = dict(user).get("style_preference")
+    presentation = "Unisex / Androgynous"
+    if prefs_str:
+        try:
+            presentation = json.loads(prefs_str).get("presentation", presentation)
+        except Exception:
+            pass
 
     client = openai_client()
     if client is None:
@@ -1292,6 +1323,7 @@ def analyze_closet():
     wardrobe_list = ", ".join(f"{item['color']} {item['category']} ({item['name']})" for item in items)
     
     prompt = f"""You are a high-end fashion stylist analyzing a user's closet.
+The user's preferred styling presentation is: {presentation}.
 Their current wardrobe consists of: {wardrobe_list}.
 
 Please provide an analysis containing exactly three sections formatted visually appealing using HTML (use tags like <h3>, <ul>, <li>, <p>, <strong>):
