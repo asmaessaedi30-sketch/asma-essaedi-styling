@@ -811,8 +811,8 @@ def forgot_password():
         else:
             app.logger.info("Password reset requested for an email without an account.")
 
-        flash("If an account exists for that email, a password reset link has been sent.", "success")
-        return redirect(url_for("login"))
+        flash("If an account exists for that email, a verification code has been sent.", "success")
+        return redirect(url_for("reset_password", email=email))
 
     return render_template("forgot_password.html")
 
